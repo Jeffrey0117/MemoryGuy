@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { builtinModules } from 'module';
 import path from 'path';
 
 export default defineConfig({
@@ -10,7 +11,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['electron', 'systeminformation'],
+      external: [
+        'electron',
+        'systeminformation',
+        ...builtinModules,
+        ...builtinModules.map((m) => `node:${m}`),
+      ],
     },
   },
 });

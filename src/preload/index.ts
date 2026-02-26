@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('memoryGuy', {
 
   executeOptimize: (pids: number[]) => ipcRenderer.invoke(IPC.EXECUTE_OPTIMIZE, pids),
 
+  trimWorkingSets: (pids: number[]) => ipcRenderer.invoke(IPC.TRIM_WORKING_SETS, pids),
+
+  trimAllWorkingSets: () => ipcRenderer.invoke(IPC.TRIM_ALL_WORKING_SETS),
+
   getAutoProtect: () => ipcRenderer.invoke(IPC.GET_AUTO_PROTECT),
 
   setAutoProtect: (settings: unknown) => ipcRenderer.invoke(IPC.SET_AUTO_PROTECT, settings),

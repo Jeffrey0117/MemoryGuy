@@ -39,32 +39,80 @@ export interface ProcessGroup {
   processes: ProcessInfo[]
 }
 
-export interface OptimizeTarget {
-  pid: number
-  name: string
-  ram: number
-  reason: 'duplicate' | 'heavy' | 'leak-suspect'
+// --- Tier 1: Working set trim ---
+
+export interface TrimTarget {
+  readonly pid: number
+  readonly name: string
+  readonly currentWorkingSet: number   // bytes
+  readonly estimatedReclaimable: number // bytes (heuristic)
 }
+
+export interface TrimResult {
+  readonly trimmed: readonly { pid: number; name: string }[]
+  readonly failed: readonly { pid: number; name: string; error: string }[]
+  readonly ramBefore: number
+  readonly ramAfter: number
+}
+
+// --- Tier 2: Smart recommendations ---
+
+export type RecommendationReason = 'leak-suspect' | 'leak-critical' | 'idle-high-ram'
+export type RiskLevel = 'safe' | 'low' | 'medium' | 'high'
+
+export interface Recommendation {
+  readonly pid: number
+  readonly name: string
+  readonly ram: number
+  readonly reason: RecommendationReason
+  readonly riskLevel: RiskLevel
+  readonly description: string
+}
+
+export interface MultiProcessSummary {
+  readonly name: string
+  readonly processCount: number
+  readonly totalRam: number
+  readonly totalCpu: number
+  readonly pids: readonly number[]
+}
+
+// --- Optimize analysis (3-tier) ---
 
 export interface OptimizeAnalysis {
-  targets: OptimizeTarget[]
-  estimatedSavings: number
-  currentRamUsed: number
-  currentRamPercent: number
+  readonly tier1: {
+    readonly trimTargets: readonly TrimTarget[]
+    readonly estimatedSavings: number
+  }
+  readonly tier2: {
+    readonly recommendations: readonly Recommendation[]
+    readonly multiProcessApps: readonly MultiProcessSummary[]
+  }
+  readonly tier3: {
+    readonly killableProcesses: readonly ProcessInfo[]
+  }
+  readonly currentRamUsed: number
+  readonly currentRamPercent: number
 }
 
+// --- Kill result (unchanged) ---
+
 export interface OptimizeResult {
-  ramBefore: number
-  ramFreed: number
-  killed: { pid: number; name: string; ram: number }[]
-  failed: { pid: number; name: string; error: string }[]
+  readonly ramBefore: number
+  readonly ramFreed: number
+  readonly killed: readonly { pid: number; name: string; ram: number }[]
+  readonly failed: readonly { pid: number; name: string; error: string }[]
 }
+
+// --- Auto-protect settings ---
 
 export interface AutoProtectSettings {
   enabled: boolean
   threshold: number         // 0-100 RAM% trigger
-  autoKill: boolean         // auto-kill duplicates when triggered
+  autoTrim: boolean         // safely trim working sets when triggered
 }
+
+// --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
   getSystemStats: () => Promise<SystemStats>
@@ -75,6 +123,8 @@ export interface MemoryGuyAPI {
   killProcessGroup: (name: string) => Promise<{ success: boolean; killed: number; error?: string }>
   analyzeOptimize: () => Promise<OptimizeAnalysis>
   executeOptimize: (pids: number[]) => Promise<OptimizeResult>
+  trimWorkingSets: (pids: number[]) => Promise<TrimResult>
+  trimAllWorkingSets: () => Promise<TrimResult>
   getAutoProtect: () => Promise<AutoProtectSettings>
   setAutoProtect: (settings: AutoProtectSettings) => Promise<void>
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void

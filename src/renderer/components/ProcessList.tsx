@@ -1,9 +1,13 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useProcessList } from '../hooks/useProcessList';
 import type { SortField } from '../hooks/useProcessList';
 import { ProcessRow } from './ProcessRow';
 import { ProcessGroupRow } from './ProcessGroupRow';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
+import type { ProtectionRule, MemoryGuyAPI } from '@shared/types';
+
+const api = (window as unknown as { memoryGuy: MemoryGuyAPI }).memoryGuy;
 
 function SortHeader({
   label,
@@ -36,6 +40,15 @@ function SortHeader({
   );
 }
 
+function getProtectionStatus(name: string, rules: ProtectionRule[]): 'protect' | 'watch' | 'none' {
+  for (const rule of rules) {
+    if (!rule.enabled || rule.pattern !== name) continue;
+    if (rule.mode === 'protect') return 'protect';
+    if (rule.mode === 'watch') return 'watch';
+  }
+  return 'none';
+}
+
 export function ProcessList() {
   const {
     processes,
@@ -52,6 +65,41 @@ export function ProcessList() {
     handleKillGroup,
   } = useProcessList();
   const locale = useAppStore((s) => s.locale);
+  const [protectionRules, setProtectionRules] = useState<ProtectionRule[]>([]);
+
+  useEffect(() => {
+    api.getProtectionRules().then((r) => setProtectionRules(r ?? []));
+  }, []);
+
+  const handleToggleProtection = useCallback(async (name: string) => {
+    const status = getProtectionStatus(name, protectionRules);
+    if (status === 'none') {
+      const rule = await api.addProtectionRule({
+        pattern: name,
+        label: name.replace('.exe', ''),
+        mode: 'watch',
+        enabled: true,
+      });
+      if (rule) {
+        setProtectionRules((prev) => [...prev, rule]);
+      }
+    } else if (status === 'watch') {
+      const rule = protectionRules.find((r) => r.enabled && r.pattern === name);
+      if (rule && !rule.builtIn) {
+        const updated = await api.updateProtectionRule(rule.id, { mode: 'protect' });
+        if (updated) {
+          setProtectionRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)));
+        }
+      }
+    } else {
+      // protect -> remove (only custom rules)
+      const rule = protectionRules.find((r) => r.enabled && r.pattern === name && !r.builtIn);
+      if (rule) {
+        await api.removeProtectionRule(rule.id);
+        setProtectionRules((prev) => prev.filter((r) => r.id !== rule.id));
+      }
+    }
+  }, [protectionRules]);
 
   if (isLoading) {
     return (
@@ -135,7 +183,13 @@ export function ProcessList() {
                   />
                 ))
               : processes.map((p) => (
-                  <ProcessRow key={p.pid} process={p} onKill={handleKill} />
+                  <ProcessRow
+                    key={p.pid}
+                    process={p}
+                    onKill={handleKill}
+                    protectionStatus={getProtectionStatus(p.name, protectionRules)}
+                    onToggleProtection={handleToggleProtection}
+                  />
                 ))}
           </tbody>
         </table>

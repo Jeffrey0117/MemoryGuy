@@ -1,17 +1,25 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, shell } from 'electron';
 import { IPC } from '@shared/constants';
 import type { SystemMonitor } from './services/system-monitor';
 import type { ProcessMonitor } from './services/process-monitor';
 import type { MemoryTracker } from './services/memory-tracker';
 import type { Optimizer } from './services/optimizer';
+import type { ProtectionStore } from './services/protection-store';
+import type { ProcessGuardian } from './services/process-guardian';
+import type { PortScanner } from './services/port-scanner';
+import type { HookGenerator } from './services/hook-generator';
 import { killByPid } from './services/process-killer';
-import type { SystemStats, ProcessInfo, LeakInfo } from '@shared/types';
+import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer } from '@shared/types';
 
 interface Deps {
   systemMonitor: SystemMonitor;
   processMonitor: ProcessMonitor;
   memoryTracker: MemoryTracker;
   optimizer: Optimizer;
+  protectionStore: ProtectionStore;
+  processGuardian: ProcessGuardian;
+  portScanner: PortScanner;
+  hookGenerator: HookGenerator;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -19,7 +27,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, hookGenerator, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -138,6 +146,82 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     return win && !win.isDestroyed() ? win.isMaximized() : false;
   });
 
+  // --- Protection rules ---
+  ipcMain.handle(IPC.GET_PROTECTION_RULES, () => {
+    return protectionStore.getRules();
+  });
+
+  ipcMain.handle(IPC.ADD_PROTECTION_RULE, (_event, rule: unknown) => {
+    if (typeof rule !== 'object' || rule === null) return null;
+    const r = rule as Record<string, unknown>;
+    if (typeof r.pattern !== 'string' || r.pattern.length === 0 || r.pattern.length > 256) return null;
+    if (typeof r.label !== 'string' || r.label.length === 0 || r.label.length > 256) return null;
+    if (r.mode !== 'watch' && r.mode !== 'protect') return null;
+    // Only allow safe characters in pattern (process names)
+    if (!/^[\w.\-\s]+$/.test(r.pattern)) return null;
+    return protectionStore.addRule({
+      pattern: r.pattern,
+      label: r.label,
+      mode: r.mode,
+      enabled: r.enabled !== false,
+    });
+  });
+
+  ipcMain.handle(IPC.REMOVE_PROTECTION_RULE, (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) return;
+    protectionStore.removeRule(id);
+  });
+
+  ipcMain.handle(IPC.UPDATE_PROTECTION_RULE, (_event, id: unknown, updates: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) return null;
+    if (typeof updates !== 'object' || updates === null) return null;
+    const u = updates as Record<string, unknown>;
+    const valid: Record<string, unknown> = {};
+    if (typeof u.enabled === 'boolean') valid.enabled = u.enabled;
+    if (u.mode === 'watch' || u.mode === 'protect') valid.mode = u.mode;
+    if (typeof u.label === 'string' && u.label.length > 0) valid.label = u.label;
+    return protectionStore.updateRule(id, valid);
+  });
+
+  // --- Guardian ---
+  ipcMain.handle(IPC.GET_WATCHED_PROCESSES, () => {
+    return processGuardian.getWatchedProcesses();
+  });
+
+  ipcMain.handle(IPC.GET_GUARDIAN_LOG, () => {
+    return processGuardian.getEventLog();
+  });
+
+  ipcMain.handle(IPC.CLEAR_GUARDIAN_LOG, () => {
+    processGuardian.clearEventLog();
+  });
+
+  // --- Dev servers ---
+  ipcMain.handle(IPC.GET_DEV_SERVERS, () => {
+    return portScanner.getDevServers();
+  });
+
+  ipcMain.handle(IPC.SCAN_DEV_SERVERS, () => {
+    return portScanner.scan();
+  });
+
+  ipcMain.handle(IPC.OPEN_EXTERNAL_URL, (_event, url: unknown) => {
+    if (typeof url !== 'string') return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') return;
+      shell.openExternal(url);
+    } catch {
+      // Invalid URL
+    }
+  });
+
+  // --- Hook generator ---
+  ipcMain.handle(IPC.GENERATE_HOOK, () => {
+    return hookGenerator.generate();
+  });
+
   // --- Push events ---
   systemMonitor.on('update', (stats: SystemStats) => {
     const win = getMainWindow();
@@ -157,6 +241,20 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.ON_LEAK_DETECTED, leak);
+    }
+  });
+
+  processGuardian.on('process-terminated', (event: GuardianEvent) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_PROCESS_TERMINATED, event);
+    }
+  });
+
+  portScanner.on('dev-servers-update', (servers: DevServer[]) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_DEV_SERVERS_UPDATE, servers);
     }
   });
 }

@@ -2,17 +2,21 @@ import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ProcessList } from './components/ProcessList';
 import { QuickActions } from './components/QuickActions';
+import { GuardianPanel } from './components/GuardianPanel';
+import { DevServers } from './components/DevServers';
 import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
 import { useAppStore } from './stores/app-store';
 import { t } from './i18n';
 
-type Tab = 'dashboard' | 'processes' | 'actions';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers';
 
-const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' }[] = [
+const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' }[] = [
   { id: 'dashboard', key: 'tab.dashboard' },
   { id: 'processes', key: 'tab.processes' },
   { id: 'actions', key: 'tab.actions' },
+  { id: 'guardian', key: 'tab.guardian' },
+  { id: 'devservers', key: 'tab.devservers' },
 ];
 
 export function App() {
@@ -48,6 +52,8 @@ export function App() {
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'processes' && <ProcessList />}
         {activeTab === 'actions' && <QuickActions />}
+        {activeTab === 'guardian' && <GuardianPanel />}
+        {activeTab === 'devservers' && <DevServers />}
       </main>
     </div>
   );

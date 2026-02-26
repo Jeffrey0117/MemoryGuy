@@ -91,6 +91,52 @@ const translations = {
   'leak.critical': { en: 'CRITICAL LEAK', zh: '嚴重洩漏' },
   'leak.suspect': { en: 'SUSPECT', zh: '疑似洩漏' },
   'leak.dismiss': { en: 'Dismiss', zh: '忽略' },
+
+  // Tabs (new)
+  'tab.guardian': { en: 'Guardian', zh: '守護' },
+  'tab.devservers': { en: 'Dev Servers', zh: '開發伺服器' },
+
+  // Guardian
+  'guardian.title': { en: 'Process Guardian', zh: '程序守護' },
+  'guardian.rules': { en: 'Protection Rules', zh: '保護規則' },
+  'guardian.addRule': { en: 'Add Rule', zh: '新增規則' },
+  'guardian.pattern': { en: 'Pattern', zh: '匹配名稱' },
+  'guardian.label': { en: 'Label', zh: '標籤' },
+  'guardian.mode': { en: 'Mode', zh: '模式' },
+  'guardian.modeWatch': { en: 'Watch', zh: '監控' },
+  'guardian.modeProtect': { en: 'Protect', zh: '保護' },
+  'guardian.enabled': { en: 'Enabled', zh: '啟用' },
+  'guardian.builtIn': { en: 'Built-in', zh: '內建' },
+  'guardian.custom': { en: 'Custom', zh: '自訂' },
+  'guardian.remove': { en: 'Remove', zh: '移除' },
+  'guardian.watchedProcesses': { en: 'Watched Processes', zh: '監控中的程序' },
+  'guardian.noWatched': { en: 'No watched processes running', zh: '沒有監控中的程序在執行' },
+  'guardian.eventLog': { en: 'Event Log', zh: '事件紀錄' },
+  'guardian.noEvents': { en: 'No termination events recorded', zh: '沒有終止事件紀錄' },
+  'guardian.clearLog': { en: 'Clear', zh: '清除' },
+  'guardian.terminated': { en: 'terminated', zh: '已終止' },
+  'guardian.hookGenerate': { en: 'Generate Hook', zh: '產生 Hook' },
+  'guardian.hookSuccess': { en: 'Hook generated successfully', zh: 'Hook 產生成功' },
+  'guardian.hookFailed': { en: 'Hook generation failed', zh: 'Hook 產生失敗' },
+  'guardian.hookDesc': {
+    en: 'Generate a Claude Code hook to block dangerous kill commands for protected processes',
+    zh: '產生 Claude Code Hook 以攔截對受保護程序的危險終止指令',
+  },
+
+  // Dev Servers
+  'devservers.title': { en: 'Dev Servers', zh: '開發伺服器' },
+  'devservers.scan': { en: 'Scan Now', zh: '立即掃描' },
+  'devservers.scanning': { en: 'Scanning...', zh: '掃描中...' },
+  'devservers.empty': { en: 'No dev servers detected', zh: '未偵測到開發伺服器' },
+  'devservers.emptyHint': {
+    en: 'Start a dev server (e.g. npm run dev) and it will appear here',
+    zh: '啟動開發伺服器（例如 npm run dev）即會顯示在此',
+  },
+  'devservers.open': { en: 'Open', zh: '開啟' },
+  'devservers.kill': { en: 'Kill', zh: '終止' },
+  'devservers.killConfirm': { en: 'Sure?', zh: '確定？' },
+  'devservers.addProtect': { en: 'Protect', zh: '保護' },
+  'devservers.search': { en: 'Search servers...', zh: '搜尋伺服器...' },
 } as const;
 
 type TranslationKey = keyof typeof translations;

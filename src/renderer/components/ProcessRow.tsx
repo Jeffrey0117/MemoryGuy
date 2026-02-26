@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ProcessInfo } from '@shared/types';
 
+type ProtectionStatus = 'protect' | 'watch' | 'none';
+
 interface Props {
   process: ProcessInfo;
   onKill: (pid: number) => Promise<{ success: boolean; error?: string }>;
   indent?: boolean;
+  protectionStatus?: ProtectionStatus;
+  onToggleProtection?: (name: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -26,7 +30,27 @@ const TREND_COLOR: Record<string, string> = {
   stable: 'text-mg-muted',
 };
 
-export function ProcessRow({ process: proc, onKill, indent }: Props) {
+function ShieldIcon({ status, onClick }: { status: ProtectionStatus; onClick?: () => void }) {
+  const color = status === 'protect'
+    ? 'text-green-400'
+    : status === 'watch'
+      ? 'text-blue-400'
+      : 'text-mg-muted/30';
+
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      className={`${color} hover:text-green-300 transition-colors`}
+      title={status === 'none' ? 'Click to protect' : `Status: ${status}`}
+    >
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L3 7v5c0 5.25 3.83 10.17 9 11.37C17.17 22.17 21 17.25 21 12V7l-9-5z" />
+      </svg>
+    </button>
+  );
+}
+
+export function ProcessRow({ process: proc, onKill, indent, protectionStatus = 'none', onToggleProtection }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [killing, setKilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +85,10 @@ export function ProcessRow({ process: proc, onKill, indent }: Props) {
   return (
     <tr className="border-b border-mg-border/30 hover:bg-mg-border/20 transition-colors">
       <td className={`py-2 ${indent ? 'pl-8' : 'pl-4'} pr-2`}>
-        <span className="text-sm text-mg-text">{proc.name}</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-mg-text">
+          <ShieldIcon status={protectionStatus} onClick={() => onToggleProtection?.(proc.name)} />
+          {proc.name}
+        </span>
       </td>
       <td className="py-2 px-2 text-sm text-mg-muted font-mono">{proc.pid}</td>
       <td className="py-2 px-2 text-sm text-mg-text text-right font-mono">

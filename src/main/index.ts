@@ -4,7 +4,11 @@ import fs from 'fs';
 import { SystemMonitor } from './services/system-monitor';
 import { ProcessMonitor } from './services/process-monitor';
 import { MemoryTracker } from './services/memory-tracker';
+import { ProtectionStore } from './services/protection-store';
+import { ProcessGuardian } from './services/process-guardian';
+import { PortScanner } from './services/port-scanner';
 import { Optimizer } from './services/optimizer';
+import { HookGenerator } from './services/hook-generator';
 import { setupIpcHandlers } from './ipc-handlers';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
@@ -31,10 +35,14 @@ declare const MAIN_WINDOW_PRELOAD_VITE_ENTRY: string;
 
 let mainWindow: BrowserWindow | null = null;
 
+const protectionStore = new ProtectionStore();
 const systemMonitor = new SystemMonitor();
 const processMonitor = new ProcessMonitor();
 const memoryTracker = new MemoryTracker(processMonitor);
-const optimizer = new Optimizer(systemMonitor, processMonitor, memoryTracker);
+const processGuardian = new ProcessGuardian(processMonitor, protectionStore);
+const portScanner = new PortScanner(processMonitor);
+const optimizer = new Optimizer(systemMonitor, processMonitor, memoryTracker, protectionStore);
+const hookGenerator = new HookGenerator(protectionStore);
 
 function getPreloadPath(): string {
   const candidates = [
@@ -99,12 +107,19 @@ async function initialize(): Promise<void> {
     processMonitor,
     memoryTracker,
     optimizer,
+    protectionStore,
+    processGuardian,
+    portScanner,
+    hookGenerator,
     getMainWindow: () => mainWindow,
   });
 
+  protectionStore.start();
   systemMonitor.start();
   processMonitor.start();
   memoryTracker.start();
+  processGuardian.start();
+  portScanner.start();
   optimizer.start();
 
   await createWindow();
@@ -121,8 +136,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  systemMonitor.stop();
-  processMonitor.stop();
-  memoryTracker.stop();
   optimizer.stop();
+  portScanner.stop();
+  processGuardian.stop();
+  memoryTracker.stop();
+  processMonitor.stop();
+  systemMonitor.stop();
+  protectionStore.stop();
 });

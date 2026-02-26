@@ -112,6 +112,41 @@ export interface AutoProtectSettings {
   autoTrim: boolean         // safely trim working sets when triggered
 }
 
+// --- Protection rules ---
+
+export interface ProtectionRule {
+  readonly id: string
+  readonly pattern: string         // e.g. "node.exe"
+  readonly label: string           // e.g. "Node.js"
+  readonly mode: 'watch' | 'protect'  // watch=monitor, protect=monitor+exclude from optimizer
+  readonly builtIn: boolean        // true=system default, cannot delete
+  readonly enabled: boolean
+  readonly createdAt: number
+}
+
+// --- Guardian events ---
+
+export interface GuardianEvent {
+  readonly id: string
+  readonly pid: number
+  readonly name: string
+  readonly terminatedAt: number
+  readonly ruleLabel: string
+}
+
+// --- Dev servers ---
+
+export interface DevServer {
+  readonly port: number
+  readonly pid: number
+  readonly processName: string
+  readonly url: string
+  readonly httpStatus?: number
+  readonly pageTitle?: string
+  readonly ram?: number
+  readonly cpu?: number
+}
+
 // --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
@@ -133,7 +168,28 @@ export interface MemoryGuyAPI {
   windowClose: () => Promise<void>
   windowIsMaximized: () => Promise<boolean>
 
+  // Protection rules
+  getProtectionRules: () => Promise<ProtectionRule[]>
+  addProtectionRule: (rule: Omit<ProtectionRule, 'id' | 'builtIn' | 'createdAt'>) => Promise<ProtectionRule>
+  removeProtectionRule: (id: string) => Promise<void>
+  updateProtectionRule: (id: string, updates: Partial<Pick<ProtectionRule, 'enabled' | 'mode' | 'label'>>) => Promise<ProtectionRule | null>
+
+  // Guardian
+  getWatchedProcesses: () => Promise<{ pid: number; name: string; detectedAt: number }[]>
+  getGuardianLog: () => Promise<GuardianEvent[]>
+  clearGuardianLog: () => Promise<void>
+
+  // Dev servers
+  getDevServers: () => Promise<DevServer[]>
+  scanDevServers: () => Promise<DevServer[]>
+  openExternalUrl: (url: string) => Promise<void>
+
+  // Hook generator
+  generateHook: () => Promise<{ success: boolean; path?: string; error?: string }>
+
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void
   onProcessUpdate: (callback: (processes: ProcessInfo[]) => void) => () => void
+  onProcessTerminated: (callback: (event: GuardianEvent) => void) => () => void
+  onDevServersUpdate: (callback: (servers: DevServer[]) => void) => () => void
 }

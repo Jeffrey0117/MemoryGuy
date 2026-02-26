@@ -2,6 +2,7 @@ import { Notification } from 'electron';
 import type { SystemMonitor } from './system-monitor';
 import type { ProcessMonitor } from './process-monitor';
 import type { MemoryTracker } from './memory-tracker';
+import type { ProtectionStore } from './protection-store';
 import { killByPid, trimWorkingSets } from './process-killer';
 import type {
   TrimTarget,
@@ -14,7 +15,6 @@ import type {
   ProcessInfo,
 } from '@shared/types';
 import {
-  SYSTEM_PROTECTED,
   MULTI_PROCESS_APPS,
   IDLE_CPU_THRESHOLD,
   IDLE_HIGH_RAM_MB,
@@ -41,6 +41,7 @@ export class Optimizer {
     private systemMonitor: SystemMonitor,
     private processMonitor: ProcessMonitor,
     private memoryTracker: MemoryTracker,
+    private protectionStore: ProtectionStore,
   ) {}
 
   start(): void {
@@ -74,7 +75,7 @@ export class Optimizer {
 
     // Tier 1: trim targets (all non-system processes)
     const trimTargets: TrimTarget[] = processes
-      .filter((proc) => !SYSTEM_PROTECTED.has(proc.name))
+      .filter((proc) => !this.protectionStore.isProtected(proc.name))
       .map((proc) => ({
         pid: proc.pid,
         name: proc.name,
@@ -110,7 +111,7 @@ export class Optimizer {
 
     // 2b. Idle processes with high RAM
     for (const proc of processes) {
-      if (SYSTEM_PROTECTED.has(proc.name)) continue;
+      if (this.protectionStore.isProtected(proc.name)) continue;
       if (leakPids.has(proc.pid)) continue;
       if (proc.cpu < IDLE_CPU_THRESHOLD && proc.ram > IDLE_HIGH_RAM_MB * MB) {
         recommendations.push({
@@ -149,7 +150,7 @@ export class Optimizer {
 
     // Tier 3: manual kill list (never pre-selected)
     const killableProcesses = processes.filter(
-      (proc) => !SYSTEM_PROTECTED.has(proc.name),
+      (proc) => !this.protectionStore.isProtected(proc.name),
     );
 
     return {
@@ -171,7 +172,7 @@ export class Optimizer {
     const processes = this.processMonitor.getProcesses();
 
     const targetPids = pids ?? processes
-      .filter((p) => !SYSTEM_PROTECTED.has(p.name))
+      .filter((p) => !this.protectionStore.isProtected(p.name))
       .map((p) => p.pid);
 
     const procMap = new Map(processes.map((p) => [p.pid, p]));
@@ -211,7 +212,7 @@ export class Optimizer {
       const proc = procMap.get(pid);
       const name = proc?.name ?? 'unknown';
 
-      if (SYSTEM_PROTECTED.has(name)) {
+      if (this.protectionStore.isProtected(name)) {
         failed.push({ pid, name, error: 'Protected system process' });
         continue;
       }

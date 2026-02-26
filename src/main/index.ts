@@ -45,6 +45,12 @@ const optimizer = new Optimizer(systemMonitor, processMonitor, memoryTracker, pr
 const hookGenerator = new HookGenerator(protectionStore);
 
 function getPreloadPath(): string {
+  // Forge Vite plugin provides the correct path at build time
+  if (typeof MAIN_WINDOW_PRELOAD_VITE_ENTRY === 'string' && MAIN_WINDOW_PRELOAD_VITE_ENTRY) {
+    log(`Preload (Forge): ${MAIN_WINDOW_PRELOAD_VITE_ENTRY}`);
+    return MAIN_WINDOW_PRELOAD_VITE_ENTRY;
+  }
+  // Fallback for packaged builds
   const candidates = [
     path.join(__dirname, 'preload.js'),
     path.join(__dirname, '..', '..', 'dist', 'preload.js'),

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, Component, type ReactNode } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ProcessList } from './components/ProcessList';
 import { QuickActions } from './components/QuickActions';
@@ -8,6 +8,29 @@ import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
 import { useAppStore } from './stores/app-store';
 import { t } from './i18n';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-4 text-red-400 bg-mg-surface">
+          <h2 className="text-lg font-bold mb-2">Render Error</h2>
+          <pre className="text-xs whitespace-pre-wrap">{this.state.error.message}</pre>
+          <pre className="text-xs whitespace-pre-wrap text-mg-muted mt-2">{this.state.error.stack}</pre>
+          <button
+            onClick={() => this.setState({ error: null })}
+            className="mt-4 px-4 py-2 bg-mg-primary text-white rounded text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers';
 
@@ -49,11 +72,13 @@ export function App() {
       </nav>
       <main className="flex-1 overflow-y-auto bg-mg-surface border-t border-mg-border p-4">
         <LeakAlert />
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'processes' && <ProcessList />}
-        {activeTab === 'actions' && <QuickActions />}
-        {activeTab === 'guardian' && <GuardianPanel />}
-        {activeTab === 'devservers' && <DevServers />}
+        <ErrorBoundary>
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'processes' && <ProcessList />}
+          {activeTab === 'actions' && <QuickActions />}
+          {activeTab === 'guardian' && <GuardianPanel />}
+          {activeTab === 'devservers' && <DevServers />}
+        </ErrorBoundary>
       </main>
     </div>
   );

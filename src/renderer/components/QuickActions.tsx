@@ -336,7 +336,8 @@ function AutoProtectPanel({
 }) {
   return (
     <div className="card p-4">
-      <h3 className="text-sm font-medium text-mg-text mb-3">{t('protect.title', locale)}</h3>
+      <h3 className="text-sm font-medium text-mg-text">{t('protect.title', locale)}</h3>
+      <p className="text-xs text-mg-muted mt-0.5 mb-3">{t('protect.desc', locale)}</p>
       <div className="space-y-3">
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-mg-muted">{t('protect.enable', locale)}</span>

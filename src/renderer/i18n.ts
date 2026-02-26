@@ -70,6 +70,10 @@ const translations = {
 
   // Auto-Protect
   'protect.title': { en: 'Auto-Protect', zh: '自動保護' },
+  'protect.desc': {
+    en: 'Automatically reclaim unused memory when RAM usage exceeds the threshold — no apps will be closed',
+    zh: '當 RAM 使用率超過閾值時，自動回收閒置記憶體 — 不會關閉任何應用程式',
+  },
   'protect.enable': { en: 'Enable auto-protect', zh: '啟用自動保護' },
   'protect.ramThreshold': { en: 'RAM threshold', zh: 'RAM 閾值' },
   'protect.autoTrim': { en: 'Auto-trim memory', zh: '自動優化記憶體' },

@@ -127,6 +127,12 @@ export interface MemoryGuyAPI {
   trimAllWorkingSets: () => Promise<TrimResult>
   getAutoProtect: () => Promise<AutoProtectSettings>
   setAutoProtect: (settings: AutoProtectSettings) => Promise<void>
+  // Window controls
+  windowMinimize: () => Promise<void>
+  windowMaximize: () => Promise<void>
+  windowClose: () => Promise<void>
+  windowIsMaximized: () => Promise<boolean>
+
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void
   onProcessUpdate: (callback: (processes: ProcessInfo[]) => void) => () => void

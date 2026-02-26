@@ -112,6 +112,32 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     });
   });
 
+  // --- Window controls ---
+  ipcMain.handle(IPC.WIN_MINIMIZE, () => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) win.minimize();
+  });
+
+  ipcMain.handle(IPC.WIN_MAXIMIZE, () => {
+    const win = getMainWindow();
+    if (!win || win.isDestroyed()) return;
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  });
+
+  ipcMain.handle(IPC.WIN_CLOSE, () => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) win.close();
+  });
+
+  ipcMain.handle(IPC.WIN_IS_MAXIMIZED, () => {
+    const win = getMainWindow();
+    return win && !win.isDestroyed() ? win.isMaximized() : false;
+  });
+
   // --- Push events ---
   systemMonitor.on('update', (stats: SystemStats) => {
     const win = getMainWindow();

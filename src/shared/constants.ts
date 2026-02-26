@@ -12,6 +12,12 @@ export const IPC = {
   GET_AUTO_PROTECT: 'get-auto-protect',
   SET_AUTO_PROTECT: 'set-auto-protect',
 
+  // Window controls
+  WIN_MINIMIZE: 'win-minimize',
+  WIN_MAXIMIZE: 'win-maximize',
+  WIN_CLOSE: 'win-close',
+  WIN_IS_MAXIMIZED: 'win-is-maximized',
+
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',
   ON_PROCESS_UPDATE: 'on-process-update',

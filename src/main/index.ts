@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { SystemMonitor } from './services/system-monitor';
@@ -54,11 +54,14 @@ function getPreloadPath(): string {
 
 async function createWindow(): Promise<void> {
   log('Creating BrowserWindow...');
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
     minWidth: 700,
     minHeight: 500,
+    frame: false,
     backgroundColor: '#121212',
     webPreferences: {
       contextIsolation: true,
@@ -79,7 +82,6 @@ async function createWindow(): Promise<void> {
     await mainWindow.loadFile(filePath);
   }
 
-  mainWindow.webContents.openDevTools({ mode: 'bottom' });
   log('Showing window...');
   mainWindow.show();
   mainWindow.focus();

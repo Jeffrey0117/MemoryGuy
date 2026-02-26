@@ -1,6 +1,8 @@
 import { useSystemStats } from '../hooks/useSystemStats';
 import { SystemGauge } from './SystemGauge';
 import { MemoryChart } from './MemoryChart';
+import { useAppStore } from '../stores/app-store';
+import { t } from '../i18n';
 
 function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
@@ -8,11 +10,12 @@ function formatBytes(bytes: number): string {
 
 export function Dashboard() {
   const { stats, ramHistory, cpuHistory, isLoading } = useSystemStats();
+  const locale = useAppStore((s) => s.locale);
 
   if (isLoading || !stats) {
     return (
       <div className="flex items-center justify-center h-64 text-mg-muted">
-        Loading system info...
+        {t('dashboard.loading', locale)}
       </div>
     );
   }
@@ -21,12 +24,11 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Gauges */}
       <div className="grid grid-cols-2 gap-4">
         <div className="card flex flex-col items-center py-6">
           <SystemGauge
             value={ramPercent}
-            label="RAM Usage"
+            label={t('dashboard.ramUsage', locale)}
             subtitle={`${formatBytes(stats.usedMem)} / ${formatBytes(stats.totalMem)}`}
             color="text-mg-primary"
           />
@@ -34,23 +36,22 @@ export function Dashboard() {
         <div className="card flex flex-col items-center py-6">
           <SystemGauge
             value={stats.cpuLoad}
-            label="CPU Load"
+            label={t('dashboard.cpuLoad', locale)}
             subtitle={`${stats.cpuLoad.toFixed(1)}%`}
             color="text-mg-primary"
           />
         </div>
       </div>
 
-      {/* Charts */}
       <MemoryChart
         data={ramHistory}
-        label="RAM History (30 min)"
+        label={t('dashboard.ramHistory', locale)}
         color="#3b82f6"
         unit="gb"
       />
       <MemoryChart
         data={cpuHistory}
-        label="CPU History (30 min)"
+        label={t('dashboard.cpuHistory', locale)}
         color="#f59e0b"
         unit="percent"
       />

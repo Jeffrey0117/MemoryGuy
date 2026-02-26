@@ -44,23 +44,23 @@ export function ProcessGroupRow({ group, onKill, onKillGroup }: Props) {
   return (
     <>
       <tr
-        className="border-b border-mg-border/30 hover:bg-white/5 cursor-pointer transition-colors"
+        className="border-b border-mg-border/30 hover:bg-mg-border/20 cursor-pointer transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <td className="py-2 pl-4 pr-2">
           <span className="text-mg-muted mr-2 text-xs">
             {expanded ? '\u25BC' : '\u25B6'}
           </span>
-          <span className="text-sm text-white font-medium">{group.name}</span>
+          <span className="text-sm text-mg-text font-medium">{group.name}</span>
           <span className="text-xs text-mg-muted ml-2">
             ({group.count})
           </span>
         </td>
         <td className="py-2 px-2 text-sm text-mg-muted">-</td>
-        <td className="py-2 px-2 text-sm text-white text-right font-mono">
+        <td className="py-2 px-2 text-sm text-mg-text text-right font-mono">
           {formatBytes(group.totalRam)}
         </td>
-        <td className="py-2 px-2 text-sm text-white text-right font-mono">
+        <td className="py-2 px-2 text-sm text-mg-text text-right font-mono">
           {group.totalCpu.toFixed(1)}%
         </td>
         <td className="py-2 px-2" />
@@ -73,8 +73,8 @@ export function ProcessGroupRow({ group, onKill, onKillGroup }: Props) {
             disabled={killing}
             className={`text-xs px-2 py-1 rounded transition-colors ${
               confirming
-                ? 'bg-red-600 text-white hover:bg-red-500'
-                : 'bg-mg-border/50 text-mg-muted hover:text-white hover:bg-mg-border'
+                ? 'bg-red-600 text-mg-text hover:bg-red-500'
+                : 'bg-mg-border/50 text-mg-muted hover:text-mg-text hover:bg-mg-border'
             } disabled:opacity-50`}
           >
             {killing ? '...' : confirming ? 'Kill All?' : 'Kill All'}

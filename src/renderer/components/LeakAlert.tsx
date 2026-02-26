@@ -1,4 +1,6 @@
 import { useLeakDetection } from '../hooks/useLeakDetection';
+import { useAppStore } from '../stores/app-store';
+import { t } from '../i18n';
 import type { MemoryGuyAPI } from '@shared/types';
 
 const api = (window as unknown as { memoryGuy: MemoryGuyAPI }).memoryGuy;
@@ -11,6 +13,7 @@ function formatBytes(bytes: number): string {
 
 export function LeakAlert() {
   const { leaks, dismissLeak } = useLeakDetection();
+  const locale = useAppStore((s) => s.locale);
 
   if (leaks.length === 0) return null;
 
@@ -26,9 +29,9 @@ export function LeakAlert() {
         >
           <div>
             <span className="text-red-400 font-medium text-sm">
-              CRITICAL LEAK
+              {t('leak.critical', locale)}
             </span>
-            <span className="text-white text-sm ml-3">
+            <span className="text-mg-text text-sm ml-3">
               {leak.name} (PID {leak.pid})
             </span>
             <span className="text-red-300 text-xs ml-3">
@@ -43,13 +46,13 @@ export function LeakAlert() {
               onClick={() => api.killProcess(leak.pid)}
               className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 transition-colors"
             >
-              Kill
+              {t('process.kill', locale)}
             </button>
             <button
               onClick={() => dismissLeak(leak.pid)}
-              className="text-xs px-2 py-1 text-mg-muted hover:text-white transition-colors"
+              className="text-xs px-2 py-1 text-mg-muted hover:text-mg-text transition-colors"
             >
-              Dismiss
+              {t('leak.dismiss', locale)}
             </button>
           </div>
         </div>
@@ -62,9 +65,9 @@ export function LeakAlert() {
         >
           <div>
             <span className="text-amber-400 font-medium text-sm">
-              SUSPECT
+              {t('leak.suspect', locale)}
             </span>
-            <span className="text-white text-sm ml-3">
+            <span className="text-mg-text text-sm ml-3">
               {leak.name} (PID {leak.pid})
             </span>
             <span className="text-amber-300 text-xs ml-3">
@@ -76,13 +79,13 @@ export function LeakAlert() {
               onClick={() => api.killProcess(leak.pid)}
               className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-500 transition-colors"
             >
-              Kill
+              {t('process.kill', locale)}
             </button>
             <button
               onClick={() => dismissLeak(leak.pid)}
-              className="text-xs px-2 py-1 text-mg-muted hover:text-white transition-colors"
+              className="text-xs px-2 py-1 text-mg-muted hover:text-mg-text transition-colors"
             >
-              Dismiss
+              {t('leak.dismiss', locale)}
             </button>
           </div>
         </div>

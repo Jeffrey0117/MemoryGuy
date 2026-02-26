@@ -59,7 +59,7 @@ async function createWindow(): Promise<void> {
     height: 700,
     minWidth: 700,
     minHeight: 500,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#121212',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

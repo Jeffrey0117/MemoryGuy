@@ -44,7 +44,7 @@ export function MemoryChart({ data, label, color = '#3b82f6', unit = 'gb' }: Pro
             width={60}
           />
           <Tooltip
-            contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+            contentStyle={{ background: 'var(--mg-tooltip-bg)', border: '1px solid var(--mg-tooltip-border)', borderRadius: 8, color: 'var(--mg-text)' }}
             labelFormatter={formatTime}
             formatter={(v: number) => [formatValue(v, unit), label]}
           />

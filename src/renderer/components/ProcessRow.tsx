@@ -59,15 +59,15 @@ export function ProcessRow({ process: proc, onKill, indent }: Props) {
   };
 
   return (
-    <tr className="border-b border-mg-border/30 hover:bg-white/5 transition-colors">
+    <tr className="border-b border-mg-border/30 hover:bg-mg-border/20 transition-colors">
       <td className={`py-2 ${indent ? 'pl-8' : 'pl-4'} pr-2`}>
-        <span className="text-sm text-white">{proc.name}</span>
+        <span className="text-sm text-mg-text">{proc.name}</span>
       </td>
       <td className="py-2 px-2 text-sm text-mg-muted font-mono">{proc.pid}</td>
-      <td className="py-2 px-2 text-sm text-white text-right font-mono">
+      <td className="py-2 px-2 text-sm text-mg-text text-right font-mono">
         {formatBytes(proc.ram)}
       </td>
-      <td className="py-2 px-2 text-sm text-white text-right font-mono">
+      <td className="py-2 px-2 text-sm text-mg-text text-right font-mono">
         {proc.cpu.toFixed(1)}%
       </td>
       <td className={`py-2 px-2 text-center ${TREND_COLOR[proc.trend]}`}>
@@ -82,8 +82,8 @@ export function ProcessRow({ process: proc, onKill, indent }: Props) {
             disabled={killing}
             className={`text-xs px-2 py-1 rounded transition-colors ${
               confirming
-                ? 'bg-red-600 text-white hover:bg-red-500'
-                : 'bg-mg-border/50 text-mg-muted hover:text-white hover:bg-mg-border'
+                ? 'bg-red-600 text-mg-text hover:bg-red-500'
+                : 'bg-mg-border/50 text-mg-muted hover:text-mg-text hover:bg-mg-border'
             } disabled:opacity-50`}
           >
             {killing ? '...' : confirming ? 'Sure?' : 'Kill'}

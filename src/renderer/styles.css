@@ -3,6 +3,54 @@
 @tailwind utilities;
 
 @layer base {
+  /* Dark theme: matte black */
+  :root[data-theme="dark"] {
+    --mg-primary: #3b82f6;
+    --mg-success: #22c55e;
+    --mg-warning: #f59e0b;
+    --mg-danger: #ef4444;
+    --mg-bg: #121212;
+    --mg-surface: #1a1a1a;
+    --mg-border: #2a2a2a;
+    --mg-text: #e5e5e5;
+    --mg-muted: #888888;
+    --mg-scrollbar: #333333;
+    --mg-tooltip-bg: #1a1a1a;
+    --mg-tooltip-border: #2a2a2a;
+  }
+
+  /* Light theme: off-white / cream */
+  :root[data-theme="light"] {
+    --mg-primary: #2563eb;
+    --mg-success: #16a34a;
+    --mg-warning: #d97706;
+    --mg-danger: #dc2626;
+    --mg-bg: #f5f0eb;
+    --mg-surface: #ffffff;
+    --mg-border: #d6cfc7;
+    --mg-text: #1a1a1a;
+    --mg-muted: #6b6560;
+    --mg-scrollbar: #c4bdb5;
+    --mg-tooltip-bg: #ffffff;
+    --mg-tooltip-border: #d6cfc7;
+  }
+
+  /* Default to dark */
+  :root {
+    --mg-primary: #3b82f6;
+    --mg-success: #22c55e;
+    --mg-warning: #f59e0b;
+    --mg-danger: #ef4444;
+    --mg-bg: #121212;
+    --mg-surface: #1a1a1a;
+    --mg-border: #2a2a2a;
+    --mg-text: #e5e5e5;
+    --mg-muted: #888888;
+    --mg-scrollbar: #333333;
+    --mg-tooltip-bg: #1a1a1a;
+    --mg-tooltip-border: #2a2a2a;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
   }
@@ -10,7 +58,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: var(--mg-scrollbar);
     border-radius: 3px;
   }
 }

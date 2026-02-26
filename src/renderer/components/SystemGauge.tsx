@@ -25,7 +25,7 @@ export function SystemGauge({ value, label, subtitle, color }: Props) {
         <path
           d="M 15 80 A 60 60 0 0 1 135 80"
           fill="none"
-          stroke="#334155"
+          stroke="var(--mg-border)"
           strokeWidth={stroke}
           strokeLinecap="round"
         />

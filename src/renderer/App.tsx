@@ -1,36 +1,45 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ProcessList } from './components/ProcessList';
 import { QuickActions } from './components/QuickActions';
 import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
+import { useAppStore } from './stores/app-store';
+import { t } from './i18n';
 
 type Tab = 'dashboard' | 'processes' | 'actions';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'processes', label: 'Processes' },
-  { id: 'actions', label: 'Quick Actions' },
+const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' }[] = [
+  { id: 'dashboard', key: 'tab.dashboard' },
+  { id: 'processes', key: 'tab.processes' },
+  { id: 'actions', key: 'tab.actions' },
 ];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const activeTab = useAppStore((s) => s.activeTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const theme = useAppStore((s) => s.theme);
+  const locale = useAppStore((s) => s.locale);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-mg-bg text-mg-text">
       <TitleBar />
       <nav className="flex gap-1 px-4 pt-2 pb-0 bg-mg-bg">
-        {TABS.map((tab) => (
+        {TAB_KEYS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm rounded-t-lg transition-colors ${
               activeTab === tab.id
-                ? 'bg-mg-surface text-white border border-mg-border border-b-0'
-                : 'text-mg-muted hover:text-white'
+                ? 'bg-mg-surface text-mg-text border border-mg-border border-b-0'
+                : 'text-mg-muted hover:text-mg-text'
             }`}
           >
-            {tab.label}
+            {t(tab.key, locale)}
           </button>
         ))}
       </nav>

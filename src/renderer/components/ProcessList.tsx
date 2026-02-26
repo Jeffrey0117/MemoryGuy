@@ -2,6 +2,8 @@ import { useProcessList } from '../hooks/useProcessList';
 import type { SortField } from '../hooks/useProcessList';
 import { ProcessRow } from './ProcessRow';
 import { ProcessGroupRow } from './ProcessGroupRow';
+import { useAppStore } from '../stores/app-store';
+import { t } from '../i18n';
 
 function SortHeader({
   label,
@@ -24,7 +26,7 @@ function SortHeader({
   return (
     <th
       className={`py-2 px-2 text-xs font-medium cursor-pointer select-none transition-colors
-        ${active ? 'text-white' : 'text-mg-muted hover:text-white'}
+        ${active ? 'text-mg-text' : 'text-mg-muted hover:text-mg-text'}
         ${align ?? 'text-left'}`}
       onClick={() => onSort(field)}
     >
@@ -49,25 +51,25 @@ export function ProcessList() {
     handleKill,
     handleKillGroup,
   } = useProcessList();
+  const locale = useAppStore((s) => s.locale);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-mg-muted">
-        Loading processes...
+        {t('process.loading', locale)}
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {/* Toolbar */}
       <div className="flex items-center gap-3">
         <input
           type="text"
-          placeholder="Search by name or PID..."
+          placeholder={t('process.search', locale)}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-mg-bg border border-mg-border rounded px-3 py-1.5 text-sm text-white
+          className="flex-1 bg-mg-bg border border-mg-border rounded px-3 py-1.5 text-sm text-mg-text
             placeholder:text-mg-muted focus:outline-none focus:border-mg-primary"
         />
         <label className="flex items-center gap-2 text-sm text-mg-muted cursor-pointer select-none">
@@ -77,20 +79,19 @@ export function ProcessList() {
             onChange={(e) => setGrouped(e.target.checked)}
             className="accent-mg-primary"
           />
-          Group
+          {t('process.group', locale)}
         </label>
         <span className="text-xs text-mg-muted">
-          {processes.length} processes
+          {processes.length} {t('process.count', locale)}
         </span>
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden">
         <table className="w-full">
           <thead className="bg-mg-bg/50 border-b border-mg-border">
             <tr>
               <SortHeader
-                label="Name"
+                label={t('process.name', locale)}
                 field="name"
                 currentSort={sortBy}
                 currentDir={sortDir}
@@ -100,7 +101,7 @@ export function ProcessList() {
                 PID
               </th>
               <SortHeader
-                label="RAM"
+                label={t('process.ram', locale)}
                 field="ram"
                 currentSort={sortBy}
                 currentDir={sortDir}
@@ -108,7 +109,7 @@ export function ProcessList() {
                 align="text-right"
               />
               <SortHeader
-                label="CPU"
+                label={t('process.cpu', locale)}
                 field="cpu"
                 currentSort={sortBy}
                 currentDir={sortDir}
@@ -116,10 +117,10 @@ export function ProcessList() {
                 align="text-right"
               />
               <th className="py-2 px-2 text-xs font-medium text-mg-muted text-center w-12">
-                Trend
+                {t('process.trend', locale)}
               </th>
               <th className="py-2 px-2 pr-4 text-xs font-medium text-mg-muted text-right w-24">
-                Action
+                {t('process.action', locale)}
               </th>
             </tr>
           </thead>
@@ -141,7 +142,7 @@ export function ProcessList() {
 
         {processes.length === 0 && (
           <div className="text-center text-mg-muted py-8 text-sm">
-            No processes found
+            {t('process.none', locale)}
           </div>
         )}
       </div>

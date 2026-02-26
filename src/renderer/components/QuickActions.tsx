@@ -189,6 +189,18 @@ function TrimPanel({
 
 function TrimResultBanner({ result, locale }: { result: TrimResult; locale: Locale }) {
   const reclaimed = result.ramBefore - result.ramAfter;
+  const hasResults = result.trimmed.length > 0;
+
+  if (!hasResults && result.failed.length === 0) {
+    return (
+      <div className="py-3 px-4 rounded bg-amber-900/20 border border-amber-500/30">
+        <span className="text-amber-400 text-sm">
+          {t('actions.noPermission', locale)}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
       <div className="py-3 px-4 rounded bg-green-900/20 border border-green-500/30">

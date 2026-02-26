@@ -52,6 +52,10 @@ const translations = {
   'actions.trimmed': { en: 'Trimmed', zh: '已優化' },
   'actions.reclaimed': { en: 'reclaimed', zh: '已回收' },
   'actions.trimFailed': { en: 'could not be trimmed (access denied)', zh: '無法優化（權限不足）' },
+  'actions.noPermission': {
+    en: 'No processes could be trimmed — try running as Administrator for full access',
+    zh: '無法優化任何程序 — 以系統管理員身分執行可獲得完整權限',
+  },
 
   // Recommendations
   'rec.title': { en: 'Recommendations', zh: '建議' },

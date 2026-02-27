@@ -152,10 +152,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  optimizer.stop();
-  devServerManager.stop();
-  portScanner.stop();
+  // Stop notification sources first to prevent burst during shutdown
   processGuardian.stop();
+  devServerManager.stop();
+  optimizer.stop();
+  portScanner.stop();
   memoryTracker.stop();
   processMonitor.stop();
   systemMonitor.stop();

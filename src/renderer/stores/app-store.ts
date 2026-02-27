@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Locale } from '../i18n';
 
 export type Theme = 'dark' | 'light';
-type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup';
 
 interface AppStore {
   activeTab: Tab;

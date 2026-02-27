@@ -12,6 +12,7 @@ import { Optimizer } from './services/optimizer';
 import { HookGenerator } from './services/hook-generator';
 import { StartupManager } from './services/startup-manager';
 import { EnvReader } from './services/env-reader';
+import { DiskCleaner } from './services/disk-cleaner';
 import { setupIpcHandlers } from './ipc-handlers';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
@@ -49,6 +50,7 @@ const optimizer = new Optimizer(systemMonitor, processMonitor, memoryTracker, pr
 const hookGenerator = new HookGenerator(protectionStore);
 const startupManager = new StartupManager();
 const envReader = new EnvReader();
+const diskCleaner = new DiskCleaner();
 
 function getPreloadPath(): string {
   // Forge Vite plugin provides the correct path at build time
@@ -126,6 +128,7 @@ async function initialize(): Promise<void> {
     hookGenerator,
     startupManager,
     envReader,
+    diskCleaner,
     getMainWindow: () => mainWindow,
   });
 

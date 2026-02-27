@@ -81,6 +81,16 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   getEnvVars: () => ipcRenderer.invoke(IPC.GET_ENV_VARS),
   copyToClipboard: (text: string) => ipcRenderer.invoke(IPC.COPY_TO_CLIPBOARD, text),
 
+  // Disk cleanup
+  scanDiskCleanup: () => ipcRenderer.invoke(IPC.SCAN_DISK_CLEANUP),
+  executeDiskCleanup: (paths: string[], sizes: Record<string, number>) => ipcRenderer.invoke(IPC.EXECUTE_DISK_CLEANUP, paths, sizes),
+  cancelDiskScan: () => ipcRenderer.invoke(IPC.CANCEL_DISK_SCAN),
+  onDiskScanProgress: (callback: (progress: unknown) => void) => {
+    const handler = (_: unknown, data: unknown) => callback(data);
+    ipcRenderer.on(IPC.ON_DISK_SCAN_PROGRESS, handler);
+    return () => { ipcRenderer.removeListener(IPC.ON_DISK_SCAN_PROGRESS, handler); };
+  },
+
   onProcessTerminated: (callback: (event: unknown) => void) => {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_PROCESS_TERMINATED, handler);

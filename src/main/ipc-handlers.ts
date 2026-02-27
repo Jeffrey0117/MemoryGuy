@@ -11,8 +11,9 @@ import type { DevServerManager } from './services/dev-server-manager';
 import type { HookGenerator } from './services/hook-generator';
 import type { StartupManager } from './services/startup-manager';
 import type { EnvReader } from './services/env-reader';
+import type { DiskCleaner } from './services/disk-cleaner';
 import { killByPid } from './services/process-killer';
-import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer } from '@shared/types';
+import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress } from '@shared/types';
 
 interface Deps {
   systemMonitor: SystemMonitor;
@@ -26,6 +27,7 @@ interface Deps {
   hookGenerator: HookGenerator;
   startupManager: StartupManager;
   envReader: EnvReader;
+  diskCleaner: DiskCleaner;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -33,7 +35,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -283,6 +285,40 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     if (typeof text !== 'string') return;
     if (text.length > 65_536) return;
     clipboard.writeText(text);
+  });
+
+  // --- Disk cleanup ---
+  ipcMain.handle(IPC.SCAN_DISK_CLEANUP, async () => {
+    try {
+      return await diskCleaner.scan();
+    } catch {
+      return { items: [], totalBytes: 0, scanDurationMs: 0 };
+    }
+  });
+
+  ipcMain.handle(IPC.EXECUTE_DISK_CLEANUP, (_event, paths: unknown, sizes: unknown) => {
+    if (!Array.isArray(paths)) return { cleaned: [], failed: [], totalFreed: 0 };
+    if (paths.length > 200) return { cleaned: [], failed: [], totalFreed: 0 };
+    const validPaths = paths.filter((p): p is string => typeof p === 'string' && p.length > 0 && p.length < 1024);
+    // Build size map from renderer-provided data
+    const sizeMap = new Map<string, number>();
+    if (typeof sizes === 'object' && sizes !== null) {
+      for (const [k, v] of Object.entries(sizes as Record<string, unknown>)) {
+        if (typeof v === 'number') sizeMap.set(k, v);
+      }
+    }
+    return diskCleaner.clean(validPaths, sizeMap);
+  });
+
+  ipcMain.handle(IPC.CANCEL_DISK_SCAN, () => {
+    diskCleaner.cancelScan();
+  });
+
+  diskCleaner.on('scan-progress', (progress: DiskScanProgress) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_DISK_SCAN_PROGRESS, progress);
+    }
   });
 
   // --- Push events ---

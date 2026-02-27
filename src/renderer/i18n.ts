@@ -179,6 +179,32 @@ const translations = {
   'envvars.copy': { en: 'Copy', zh: '複製' },
   'envvars.copied': { en: 'Copied!', zh: '已複製！' },
   'envvars.empty': { en: 'No environment variables found', zh: '未找到環境變數' },
+  // Disk Cleanup
+  'tab.diskcleanup': { en: 'Disk Cleanup', zh: '磁碟清理' },
+  'diskcleanup.scan': { en: 'Scan All Drives', zh: '掃描所有磁碟' },
+  'diskcleanup.scanning': { en: 'Scanning...', zh: '掃描中...' },
+  'diskcleanup.cancel': { en: 'Cancel', zh: '取消' },
+  'diskcleanup.clean': { en: 'Clean Selected', zh: '清理選取項目' },
+  'diskcleanup.cleaning': { en: 'Cleaning...', zh: '清理中...' },
+  'diskcleanup.empty': { en: 'No cleanup items found', zh: '未找到可清理項目' },
+  'diskcleanup.emptyHint': { en: 'Click "Scan All Drives" to find junk files', zh: '點擊「掃描所有磁碟」來尋找垃圾檔案' },
+  'diskcleanup.found': { en: 'found', zh: '已找到' },
+  'diskcleanup.selected': { en: 'Selected', zh: '已選取' },
+  'diskcleanup.freed': { en: 'Cleaned successfully', zh: '清理成功' },
+  'diskcleanup.failed': { en: 'Failed to clean', zh: '清理失敗' },
+  'diskcleanup.confirmClean': { en: 'Confirm Cleanup', zh: '確認清理' },
+  'diskcleanup.confirmCleanDesc': {
+    en: 'Delete {count} selected items ({size})? This cannot be undone.',
+    zh: '刪除 {count} 個選取項目（{size}）？此操作無法復原。',
+  },
+  'diskcleanup.stale': { en: 'stale', zh: '老舊' },
+  'diskcleanup.devDeps': { en: 'Dev Dependencies', zh: '開發相依套件' },
+  'diskcleanup.devBuild': { en: 'Build Output', zh: '建置輸出' },
+  'diskcleanup.pkgCache': { en: 'Package Cache', zh: '套件快取' },
+  'diskcleanup.temp': { en: 'System Temp', zh: '系統暫存' },
+  'diskcleanup.browserCache': { en: 'Browser Cache', zh: '瀏覽器快取' },
+  'diskcleanup.recycleBin': { en: 'Recycle Bin', zh: '資源回收筒' },
+  'diskcleanup.selectAll': { en: 'Select All', zh: '全選' },
 } as const;
 
 type TranslationKey = keyof typeof translations;

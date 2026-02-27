@@ -4,6 +4,9 @@ import { ProcessList } from './components/ProcessList';
 import { QuickActions } from './components/QuickActions';
 import { GuardianPanel } from './components/GuardianPanel';
 import { DevServers } from './components/DevServers';
+import { StartupPanel } from './components/StartupPanel';
+import { EnvVarsPanel } from './components/EnvVarsPanel';
+import { DiskCleanup } from './components/DiskCleanup';
 import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
 import { useAppStore } from './stores/app-store';
@@ -32,14 +35,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup';
 
-const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' }[] = [
+const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' | 'tab.startup' | 'tab.envvars' | 'tab.diskcleanup' }[] = [
   { id: 'dashboard', key: 'tab.dashboard' },
   { id: 'processes', key: 'tab.processes' },
-  { id: 'actions', key: 'tab.actions' },
   { id: 'guardian', key: 'tab.guardian' },
   { id: 'devservers', key: 'tab.devservers' },
+  { id: 'diskcleanup', key: 'tab.diskcleanup' },
+  { id: 'startup', key: 'tab.startup' },
+  { id: 'envvars', key: 'tab.envvars' },
+  { id: 'actions', key: 'tab.actions' },
 ];
 
 export function App() {
@@ -78,6 +84,9 @@ export function App() {
           {activeTab === 'actions' && <QuickActions />}
           {activeTab === 'guardian' && <GuardianPanel />}
           {activeTab === 'devservers' && <DevServers />}
+          {activeTab === 'startup' && <StartupPanel />}
+          {activeTab === 'envvars' && <EnvVarsPanel />}
+          {activeTab === 'diskcleanup' && <DiskCleanup />}
         </ErrorBoundary>
       </main>
     </div>

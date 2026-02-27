@@ -52,6 +52,12 @@ export const IPC = {
   GET_ENV_VARS: 'get-env-vars',
   COPY_TO_CLIPBOARD: 'copy-to-clipboard',
 
+  // Disk cleanup
+  SCAN_DISK_CLEANUP: 'scan-disk-cleanup',
+  EXECUTE_DISK_CLEANUP: 'execute-disk-cleanup',
+  CANCEL_DISK_SCAN: 'cancel-disk-scan',
+  ON_DISK_SCAN_PROGRESS: 'on-disk-scan-progress',
+
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',
   ON_PROCESS_UPDATE: 'on-process-update',

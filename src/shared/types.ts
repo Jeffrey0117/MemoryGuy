@@ -177,6 +177,37 @@ export interface AutoRestartEvent {
   readonly timestamp: number
 }
 
+// --- Disk cleanup ---
+
+export type CleanupCategory = 'dev-deps' | 'dev-build' | 'pkg-cache' | 'temp' | 'browser-cache' | 'recycle-bin'
+
+export interface DiskCleanupItem {
+  readonly id: string
+  readonly path: string
+  readonly category: CleanupCategory
+  readonly label: string
+  readonly sizeBytes: number
+  readonly lastModified: number
+}
+
+export interface DiskScanProgress {
+  readonly scanned: number
+  readonly found: number
+  readonly totalBytes: number
+}
+
+export interface DiskScanResult {
+  readonly items: readonly DiskCleanupItem[]
+  readonly totalBytes: number
+  readonly scanDurationMs: number
+}
+
+export interface DiskCleanResult {
+  readonly cleaned: readonly { readonly path: string; readonly sizeBytes: number }[]
+  readonly failed: readonly { readonly path: string; readonly error: string }[]
+  readonly totalFreed: number
+}
+
 // --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
@@ -228,6 +259,12 @@ export interface MemoryGuyAPI {
   // Environment variables
   getEnvVars: () => Promise<EnvVar[]>
   copyToClipboard: (text: string) => Promise<void>
+
+  // Disk cleanup
+  scanDiskCleanup: () => Promise<DiskScanResult>
+  executeDiskCleanup: (paths: string[], sizes: Record<string, number>) => Promise<DiskCleanResult>
+  cancelDiskScan: () => Promise<void>
+  onDiskScanProgress: (callback: (progress: DiskScanProgress) => void) => () => void
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

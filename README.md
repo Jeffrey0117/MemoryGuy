@@ -1,29 +1,79 @@
 # MemoryGuy
 
-A lightweight Windows system resource monitor built with Electron. Tracks RAM/CPU usage in real-time, detects memory leaks using statistical analysis, and reclaims memory safely without killing processes.
+**Your dev environment's bodyguard.**
 
-## Features
+Running 7 services on different ports? MemoryGuy watches them all — detects memory leaks, reclaims RAM without killing anything, scans your dev servers, and generates Claude Code hooks that **prevent AI from accidentally nuking your processes**.
 
-**Real-time Monitoring**
-- RAM and CPU usage gauges with 30-minute rolling history charts
-- Per-process memory/CPU tracking with trend indicators (rising/falling/stable)
-- Process grouping, sorting, and search
+## The Problem
 
-**Memory Leak Detection**
-- Statistical leak detection using linear regression with R-squared validation
-- Two-tier severity: suspect (1+ MB/min for 5+ min) and critical (5+ MB/min for 2+ min)
-- Real-time alerts with one-click process termination
+You're running CloudPipe (port 8787), Next.js (3000), Express (4001-4006), and Claude Code — all Node.js. Something's eating RAM. You open Task Manager and see 20 `node.exe` processes. Which is which? You can't tell.
 
-**Safe Memory Optimization**
-- One-click memory reclaim using Windows `EmptyWorkingSet` API -- no processes killed
-- Smart recommendations: only flags real memory leaks and idle high-RAM processes
-- Multi-process app awareness (Chrome, VS Code, Edge shown as summaries, not kill targets)
-- Auto-protect: automatically trims working sets when RAM exceeds configurable threshold
+You run `taskkill /IM node.exe`. Everything dies. CloudPipe. Claude Code. Your unsaved work. All gone.
 
-**UI**
-- Dark theme (matte black) and light theme (off-white) with toggle
-- English / Chinese (Traditional) language switching
-- Frameless window with custom title bar
+**MemoryGuy makes sure that never happens.**
+
+## What It Does
+
+### Dev Server Dashboard
+
+Built-in port scanner that auto-discovers every running dev server (port 3000-9999):
+
+- **Auto-detect** Node, Bun, Deno, Python, Ruby, Java, Go, PHP, .NET
+- **Server cards** showing port, process name, PID, HTTP status, page title, RAM, CPU
+- **One-click open** in browser
+- **One-click protect** — add to guardian rules directly from the card
+- **Safe kill** with confirmation dialog (no accidental kills)
+- Search and filter across all servers
+
+### Memory Leak Detection
+
+Statistical leak detection using linear regression with R-squared validation:
+
+| Severity | Trigger | Example |
+|----------|---------|---------|
+| **Suspect** | 1+ MB/min for 5+ min | Next.js dev server slowly leaking |
+| **Critical** | 5+ MB/min for 2+ min | Runaway build process eating RAM fast |
+
+Real-time alerts. One-click action. No false positives.
+
+### Safe Memory Optimization
+
+3-tier system — the optimizer **never pre-selects processes for killing**:
+
+| Tier | Action | Risk |
+|------|--------|------|
+| 1 | **Trim Working Sets** — `EmptyWorkingSet` API releases unused pages | None. Processes keep running |
+| 2 | **Recommendations** — flags leaks and idle high-RAM processes | You decide |
+| 3 | **Manual Kill** — explicit termination with confirmation | Your call |
+
+Multi-process aware: Chrome, VS Code, Edge shown as group summaries, not individual kill targets.
+
+### Process Guardian
+
+Mark any process as **protected** or **watched**:
+
+- **Protected** — MemoryGuy will never touch it + generates hooks to prevent other tools from killing it
+- **Watched** — monitors and alerts you if it gets terminated (by anything)
+- **Event log** — tracks all termination events with timestamps
+- **Desktop notifications** — instant alert when a watched process dies
+- **Built-in rules** — system-critical processes (explorer, csrss, lsass, dwm) always protected
+
+### Claude Code Hook Generator
+
+**This is the bridge to the ecosystem.**
+
+One click generates a `PreToolUse` hook for Claude Code that blocks dangerous kill commands targeting your protected processes:
+
+```
+You:       protect node.exe, python.exe in MemoryGuy
+MemoryGuy: generates ~/.claude/hooks/block-process-kill.js
+MemoryGuy: auto-registers in ~/.claude/settings.json
+
+Claude:    "Let me clean up — taskkill /IM node.exe"
+Hook:      BLOCKED. Command targets a protected process.
+```
+
+Your AI assistant can't accidentally kill your services. It works with Claude Code, ClaudeBot, or any tool that uses Claude Code hooks.
 
 ## Tech Stack
 
@@ -40,58 +90,29 @@ A lightweight Windows system resource monitor built with Electron. Tracks RAM/CP
 ## Getting Started
 
 ```bash
-# Install dependencies
+git clone https://github.com/Jeffrey0117/MemoryGuy.git
+cd MemoryGuy
 npm install
-
-# Run in development
 npm start
-
-# Build for distribution
-npm run make
 ```
 
 Requires: Node.js 18+, Windows 10/11, PowerShell 5.1+
 
-## Architecture
+---
 
-```
-src/
-  main/                     # Electron main process
-    index.ts                # App entry, window creation
-    ipc-handlers.ts         # IPC bridge with input validation
-    services/
-      system-monitor.ts     # RAM/CPU polling (1s interval)
-      process-monitor.ts    # Process list with trend tracking (2s interval)
-      memory-tracker.ts     # Leak detection via linear regression (30s checks)
-      optimizer.ts          # 3-tier optimizer: trim / recommend / manual kill
-      process-killer.ts     # taskkill + EmptyWorkingSet via PowerShell
-  preload/
-    index.ts                # Context bridge (contextIsolation: true)
-  renderer/
-    App.tsx                 # Tab navigation, theme/locale provider
-    i18n.ts                 # Translation strings (en/zh)
-    stores/app-store.ts     # Zustand store (tab, theme, locale)
-    components/
-      Dashboard.tsx         # Gauges + history charts
-      ProcessList.tsx       # Sortable/searchable/groupable process table
-      QuickActions.tsx      # 3-tier optimizer UI
-      LeakAlert.tsx         # Global leak notification banner
-      SystemGauge.tsx       # SVG semicircle gauge
-      MemoryChart.tsx       # Recharts line chart
-  shared/
-    types.ts                # Shared TypeScript interfaces
-    constants.ts            # IPC channels, thresholds, protected process list
-```
+## Ecosystem
 
-## How Optimization Works
+MemoryGuy is the safety net for a developer toolkit that covers your entire workflow:
 
-| Tier | Action | Risk |
-|------|--------|------|
-| 1 | **Trim Working Sets** -- calls `EmptyWorkingSet` via PowerShell to release unused memory pages | None -- processes continue running |
-| 2 | **Recommendations** -- flags memory leaks (statistical) and idle high-RAM processes | User decides whether to act |
-| 3 | **Manual Kill** -- explicit process termination with confirmation | Data loss possible |
+| Tool | What It Does | Repo |
+|------|-------------|------|
+| [**DevUp**](https://github.com/Jeffrey0117/DevUp) | New machine? One command rebuilds your entire workspace | `npx devup-cli` |
+| [**ZeroSetup**](https://github.com/Jeffrey0117/ZeroSetup) | Any GitHub project, double-click to run. Zero setup steps | `npx zerosetup` |
+| [**ClaudeBot**](https://github.com/Jeffrey0117/ClaudeBot) | Write code from your phone via AI. Voice-to-code, live streaming | Telegram bot |
+| [**CloudPipe**](https://github.com/Jeffrey0117/CloudPipe) | Self-hosted Vercel. Auto-deploys, Telegram control, 31+ MCP tools | `npm i -g @jeffrey0117/cloudpipe` |
+| **MemoryGuy** | Memory guardian, dev server dashboard, AI safety hooks | *you are here* |
 
-The optimizer never pre-selects processes for killing. System-critical processes and the app itself are always protected.
+**The full loop:** DevUp sets up your machine → ClaudeBot writes code from your phone → CloudPipe auto-deploys → MemoryGuy keeps it all running and prevents AI from breaking things.
 
 ## License
 

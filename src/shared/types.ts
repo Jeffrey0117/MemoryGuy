@@ -134,11 +134,31 @@ export interface GuardianEvent {
   readonly ruleLabel: string
 }
 
+// --- Startup programs ---
+
+export interface StartupItem {
+  readonly id: string
+  readonly name: string
+  readonly command: string
+  readonly location: 'hkcu' | 'hklm' | 'folder'
+  readonly enabled: boolean
+  readonly isAdmin: boolean
+}
+
+// --- Environment variables ---
+
+export interface EnvVar {
+  readonly name: string
+  readonly value: string
+  readonly scope: 'system' | 'user'
+}
+
 // --- Dev servers ---
 
 export interface DevServer {
   readonly port: number
   readonly pid: number
+  readonly ppid?: number
   readonly processName: string
   readonly url: string
   readonly httpStatus?: number
@@ -186,6 +206,15 @@ export interface MemoryGuyAPI {
 
   // Hook generator
   generateHook: () => Promise<{ success: boolean; path?: string; error?: string }>
+
+  // Startup programs
+  getStartupItems: () => Promise<StartupItem[]>
+  toggleStartupItem: (id: string) => Promise<{ success: boolean; error?: string }>
+  removeStartupItem: (id: string) => Promise<{ success: boolean; error?: string }>
+
+  // Environment variables
+  getEnvVars: () => Promise<EnvVar[]>
+  copyToClipboard: (text: string) => Promise<void>
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

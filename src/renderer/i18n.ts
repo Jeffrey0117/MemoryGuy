@@ -141,6 +141,39 @@ const translations = {
   'devservers.killConfirm': { en: 'Sure?', zh: '確定？' },
   'devservers.addProtect': { en: 'Protect', zh: '保護' },
   'devservers.search': { en: 'Search servers...', zh: '搜尋伺服器...' },
+  'devservers.group': { en: 'Group', zh: '分組' },
+  'devservers.ungrouped': { en: 'Standalone', zh: '獨立' },
+
+  // Startup Programs
+  'tab.startup': { en: 'Startup', zh: '開機程式' },
+  'startup.title': { en: 'Startup Programs', zh: '開機程式' },
+  'startup.refresh': { en: 'Refresh', zh: '重新整理' },
+  'startup.refreshing': { en: 'Refreshing...', zh: '重新整理中...' },
+  'startup.search': { en: 'Search startup items...', zh: '搜尋開機程式...' },
+  'startup.name': { en: 'Name', zh: '名稱' },
+  'startup.command': { en: 'Command', zh: '指令' },
+  'startup.location': { en: 'Location', zh: '來源' },
+  'startup.enabled': { en: 'Enabled', zh: '啟用' },
+  'startup.action': { en: 'Action', zh: '操作' },
+  'startup.remove': { en: 'Remove', zh: '移除' },
+  'startup.removeConfirm': { en: 'Sure?', zh: '確定？' },
+  'startup.empty': { en: 'No startup items found', zh: '未找到開機程式' },
+  'startup.adminOnly': { en: 'Admin only', zh: '需要管理員' },
+  'startup.hkcu': { en: 'User', zh: '使用者' },
+  'startup.hklm': { en: 'System', zh: '系統' },
+  'startup.folder': { en: 'Folder', zh: '資料夾' },
+
+  // Environment Variables
+  'tab.envvars': { en: 'Env Vars', zh: '環境變數' },
+  'envvars.title': { en: 'Environment Variables', zh: '環境變數' },
+  'envvars.refresh': { en: 'Refresh', zh: '重新整理' },
+  'envvars.refreshing': { en: 'Refreshing...', zh: '重新整理中...' },
+  'envvars.search': { en: 'Search variables...', zh: '搜尋變數...' },
+  'envvars.system': { en: 'System Variables', zh: '系統變數' },
+  'envvars.user': { en: 'User Variables', zh: '使用者變數' },
+  'envvars.copy': { en: 'Copy', zh: '複製' },
+  'envvars.copied': { en: 'Copied!', zh: '已複製！' },
+  'envvars.empty': { en: 'No environment variables found', zh: '未找到環境變數' },
 } as const;
 
 type TranslationKey = keyof typeof translations;

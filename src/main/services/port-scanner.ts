@@ -66,6 +66,10 @@ export class PortScanner extends EventEmitter {
         return true;
       });
 
+      // Batch-fetch PPIDs for all discovered PIDs
+      const pids = unique.map((e) => e.pid);
+      const ppidMap = await this.getPpidMap(pids);
+
       // HTTP probe all servers in parallel
       const servers = await Promise.all(
         unique.map(async (entry) => {
@@ -76,6 +80,7 @@ export class PortScanner extends EventEmitter {
           return {
             port: entry.port,
             pid: entry.pid,
+            ppid: ppidMap.get(entry.pid),
             processName: proc?.name ?? 'unknown',
             url,
             httpStatus: probe.status,
@@ -92,6 +97,49 @@ export class PortScanner extends EventEmitter {
     } catch {
       return this.currentServers;
     }
+  }
+
+  private getPpidMap(pids: number[]): Promise<Map<number, number>> {
+    if (pids.length === 0) return Promise.resolve(new Map());
+
+    const validPids = pids.filter((p) => Number.isSafeInteger(p) && p > 0);
+    if (validPids.length === 0) return Promise.resolve(new Map());
+
+    const filter = validPids.map((p) => `ProcessId=${p}`).join(' or ');
+    const psCommand = `Get-CimInstance Win32_Process -Filter '${filter}' | Select-Object ProcessId, ParentProcessId | ConvertTo-Csv -NoTypeInformation`;
+
+    return new Promise((resolve) => {
+      execFile(
+        'powershell.exe',
+        ['-NoProfile', '-Command', psCommand],
+        { timeout: 4000 },
+        (err, stdout) => {
+          if (err) {
+            resolve(new Map());
+            return;
+          }
+
+          const map = new Map<number, number>();
+          const lines = stdout.split('\n');
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('"ProcessId"')) continue;
+
+            // CSV format: "ProcessId","ParentProcessId"
+            const match = trimmed.match(/^"(\d+)","(\d+)"$/);
+            if (!match) continue;
+            const pid = parseInt(match[1], 10);
+            const ppid = parseInt(match[2], 10);
+            if (Number.isFinite(pid) && pid > 0 && Number.isFinite(ppid) && ppid >= 0) {
+              map.set(pid, ppid);
+            }
+          }
+
+          resolve(map);
+        },
+      );
+    });
   }
 
   private getListeningPorts(): Promise<NetstatEntry[]> {

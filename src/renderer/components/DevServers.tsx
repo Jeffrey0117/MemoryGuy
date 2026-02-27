@@ -119,10 +119,259 @@ function ServerCard({
   );
 }
 
+// --- Group data model ---
+
+interface ServerGroup {
+  readonly parent: DevServer | null;
+  readonly children: DevServer[];
+  readonly allServers: DevServer[];
+}
+
+const GROUP_COLORS = [
+  { border: 'border-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500' },
+  { border: 'border-purple-500', bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-500' },
+  { border: 'border-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500' },
+  { border: 'border-amber-500', bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-500' },
+  { border: 'border-rose-500', bg: 'bg-rose-500/10', text: 'text-rose-400', dot: 'bg-rose-500' },
+  { border: 'border-cyan-500', bg: 'bg-cyan-500/10', text: 'text-cyan-400', dot: 'bg-cyan-500' },
+] as const;
+
+function buildGroups(servers: DevServer[]): ServerGroup[] {
+  const pidSet = new Set(servers.map((s) => s.pid));
+  const grouped = new Set<number>();
+  const groups: ServerGroup[] = [];
+
+  const ppidToServers = new Map<number, DevServer[]>();
+  for (const s of servers) {
+    if (s.ppid != null) {
+      const existing = ppidToServers.get(s.ppid) ?? [];
+      ppidToServers.set(s.ppid, [...existing, s]);
+    }
+  }
+
+  for (const [ppid, children] of ppidToServers) {
+    if (pidSet.has(ppid)) {
+      const parent = servers.find((s) => s.pid === ppid)!;
+      const actualChildren = children.filter((c) => c.pid !== ppid);
+      if (actualChildren.length > 0) {
+        groups.push({ parent, children: actualChildren, allServers: [parent, ...actualChildren] });
+        grouped.add(parent.pid);
+        for (const c of actualChildren) grouped.add(c.pid);
+      }
+    } else if (children.length >= 2) {
+      groups.push({ parent: null, children, allServers: children });
+      for (const c of children) grouped.add(c.pid);
+    }
+  }
+
+  const standalone = servers.filter((s) => !grouped.has(s.pid));
+  if (standalone.length > 0) {
+    groups.push({ parent: null, children: standalone, allServers: standalone });
+  }
+
+  return groups;
+}
+
+// --- Compact row for grouped mode ---
+
+function ServerRow({
+  server,
+  locale,
+  color,
+  isParent,
+  onOpen,
+}: {
+  server: DevServer;
+  locale: 'en' | 'zh';
+  color?: typeof GROUP_COLORS[number];
+  isParent?: boolean;
+  onOpen: (url: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [killing, setKilling] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const handleKill = async () => {
+    if (!confirming) {
+      setConfirming(true);
+      timerRef.current = setTimeout(() => setConfirming(false), 3000);
+      return;
+    }
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setKilling(true);
+    await api.killProcess(server.pid);
+    setKilling(false);
+    setConfirming(false);
+  };
+
+  const statusOk = server.httpStatus != null && server.httpStatus >= 200 && server.httpStatus < 400;
+
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-mg-card/80 ${
+      isParent ? 'font-medium' : ''
+    }`}>
+      {/* Status dot */}
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+        server.httpStatus == null ? 'bg-mg-muted/40'
+          : statusOk ? 'bg-green-500' : 'bg-yellow-500'
+      }`} />
+
+      {/* Port */}
+      <span className={`font-mono font-bold w-16 flex-shrink-0 ${color?.text ?? 'text-mg-primary'}`}>
+        :{server.port}
+      </span>
+
+      {/* Process name + title */}
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span className="text-sm text-mg-text truncate">{server.processName}</span>
+        {server.pageTitle && (
+          <span className="text-xs text-mg-muted truncate hidden sm:inline" title={server.pageTitle}>
+            {server.pageTitle}
+          </span>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="hidden md:flex items-center gap-3 text-xs text-mg-muted flex-shrink-0">
+        {server.ram !== undefined && <span>{formatBytes(server.ram)}</span>}
+        {server.cpu !== undefined && <span>{server.cpu.toFixed(1)}%</span>}
+      </div>
+
+      {/* PID */}
+      <span className="text-xs text-mg-muted/60 font-mono w-14 text-right flex-shrink-0">
+        {server.pid}
+      </span>
+
+      {/* Actions */}
+      <div className="flex gap-1 flex-shrink-0">
+        <button
+          onClick={() => onOpen(server.url)}
+          className="text-xs px-2 py-1 rounded bg-mg-primary/20 text-mg-primary hover:bg-mg-primary/30 transition-colors"
+        >
+          {t('devservers.open', locale)}
+        </button>
+        <button
+          onClick={handleKill}
+          disabled={killing}
+          className={`text-xs px-2 py-1 rounded transition-colors ${
+            confirming
+              ? 'bg-red-600 text-white hover:bg-red-500'
+              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text hover:bg-mg-border/60'
+          } disabled:opacity-50`}
+        >
+          {killing ? '...' : confirming ? t('devservers.killConfirm', locale) : t('devservers.kill', locale)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- Group card for grouped mode ---
+
+function GroupCard({
+  group,
+  colorIndex,
+  locale,
+  onOpen,
+}: {
+  group: ServerGroup;
+  colorIndex: number;
+  locale: 'en' | 'zh';
+  onOpen: (url: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const isRealGroup = group.parent != null || group.children.length >= 2;
+  const color = isRealGroup ? GROUP_COLORS[colorIndex % GROUP_COLORS.length] : undefined;
+
+  const label = group.parent
+    ? `${group.parent.processName} :${group.parent.port}`
+    : isRealGroup
+      ? `${group.children[0]?.processName ?? '?'} (${group.allServers.length})`
+      : t('devservers.ungrouped', locale);
+
+  const totalRam = group.allServers.reduce((sum, s) => sum + (s.ram ?? 0), 0);
+
+  return (
+    <div className={`rounded-lg overflow-hidden ${
+      color ? `border-l-2 ${color.border}` : 'border-l-2 border-mg-border/40'
+    }`}>
+      {/* Group header */}
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
+          color ? `${color.bg} hover:brightness-110` : 'bg-mg-card/40 hover:bg-mg-card/60'
+        }`}
+      >
+        {/* Collapse chevron */}
+        <svg
+          className={`w-3.5 h-3.5 text-mg-muted transition-transform ${collapsed ? '' : 'rotate-90'}`}
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+        </svg>
+
+        {/* Color dot */}
+        {color && <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />}
+
+        {/* Label */}
+        <span className={`text-sm font-medium ${color?.text ?? 'text-mg-muted'}`}>
+          {label}
+        </span>
+
+        {/* Count badge */}
+        <span className="text-xs text-mg-muted/60 ml-1">
+          {group.allServers.length} server{group.allServers.length !== 1 ? 's' : ''}
+        </span>
+
+        {/* Total RAM */}
+        {totalRam > 0 && (
+          <span className="text-xs text-mg-muted/60 ml-auto">
+            {formatBytes(totalRam)}
+          </span>
+        )}
+      </button>
+
+      {/* Members */}
+      {!collapsed && (
+        <div className="divide-y divide-mg-border/20">
+          {group.parent && (
+            <ServerRow
+              server={group.parent}
+              locale={locale}
+              color={color}
+              isParent
+              onOpen={onOpen}
+            />
+          )}
+          {group.children.map((server) => (
+            <ServerRow
+              key={server.port}
+              server={server}
+              locale={locale}
+              color={color}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Main component ---
+
 export function DevServers() {
   const { servers, isLoading, isScanning, scanNow, openUrl } = useDevServers();
   const locale = useAppStore((s) => s.locale);
   const [search, setSearch] = useState('');
+  const [grouped, setGrouped] = useState(false);
 
   const filtered = useMemo(() => {
     if (!search) return servers;
@@ -134,6 +383,8 @@ export function DevServers() {
         (s.pageTitle && s.pageTitle.toLowerCase().includes(q)),
     );
   }, [servers, search]);
+
+  const groups = useMemo(() => buildGroups(filtered), [filtered]);
 
   if (isLoading) {
     return (
@@ -156,6 +407,16 @@ export function DevServers() {
             placeholder:text-mg-muted focus:outline-none focus:border-mg-primary"
         />
         <button
+          onClick={() => setGrouped((g) => !g)}
+          className={`px-3 py-1.5 text-sm rounded transition-colors ${
+            grouped
+              ? 'bg-mg-primary text-white'
+              : 'bg-mg-border/50 text-mg-muted hover:text-mg-text hover:bg-mg-border'
+          }`}
+        >
+          {t('devservers.group', locale)}
+        </button>
+        <button
           onClick={scanNow}
           disabled={isScanning}
           className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90
@@ -168,11 +429,23 @@ export function DevServers() {
         </span>
       </div>
 
-      {/* Server cards */}
+      {/* Content */}
       {filtered.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-mg-muted text-sm">{t('devservers.empty', locale)}</div>
           <div className="text-mg-muted/60 text-xs mt-1">{t('devservers.emptyHint', locale)}</div>
+        </div>
+      ) : grouped ? (
+        <div className="space-y-5">
+          {groups.map((group, idx) => (
+            <GroupCard
+              key={group.parent ? `g-${group.parent.pid}` : `s-${group.children[0]?.ppid ?? idx}`}
+              group={group}
+              colorIndex={idx}
+              locale={locale}
+              onOpen={openUrl}
+            />
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

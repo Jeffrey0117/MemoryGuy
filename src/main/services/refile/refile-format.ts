@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 import { z } from 'zod'
 
+const EXTENSIONS = ['.revid', '.remusic', '.repic', '.refile'] as const
+type RefileExt = typeof EXTENSIONS[number]
+
 const refileSchema = z.object({
   v: z.literal(1),
   type: z.literal('refile'),
@@ -19,6 +22,13 @@ const refileSchema = z.object({
 })
 
 export type RefilePointer = z.infer<typeof refileSchema>
+
+export function getExtensionForMime(mime: string): RefileExt {
+  if (mime.startsWith('video/')) return '.revid'
+  if (mime.startsWith('audio/')) return '.remusic'
+  if (mime.startsWith('image/')) return '.repic'
+  return '.refile'
+}
 
 export function createRefilePointer(params: {
   mime: string
@@ -59,13 +69,21 @@ export function writeRefilePointer(filePath: string, pointer: RefilePointer): vo
 }
 
 export function isRefilePath(filePath: string): boolean {
-  return filePath.endsWith('.refile')
+  return EXTENSIONS.some((ext) => filePath.endsWith(ext))
 }
 
 export function getOriginalPath(refilePath: string): string {
-  return refilePath.replace(/\.refile$/, '')
+  for (const ext of EXTENSIONS) {
+    if (refilePath.endsWith(ext)) {
+      return refilePath.slice(0, -ext.length)
+    }
+  }
+  return refilePath
 }
 
-export function getRefilePath(originalPath: string): string {
-  return `${originalPath}.refile`
+export function getRefilePath(originalPath: string, mime?: string): string {
+  const ext = mime ? getExtensionForMime(mime) : '.refile'
+  return `${originalPath}${ext}`
 }
+
+export { EXTENSIONS }

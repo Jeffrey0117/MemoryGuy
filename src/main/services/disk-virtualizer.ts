@@ -6,7 +6,7 @@ import { lookup } from 'mime-types'
 import { z } from 'zod'
 import type { RefileConfig } from './refile/config-types'
 import { createBackend } from './refile/backends/registry'
-import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePath } from './refile/refile-format'
+import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePath, isRefilePath, getOriginalPath, EXTENSIONS } from './refile/refile-format'
 import { hashFile, verifyHash } from './refile/hasher'
 import { getFileMeta, restoreFileMeta } from './refile/file-meta'
 import { runPs, psEscape } from './powershell'
@@ -172,8 +172,9 @@ export class DiskVirtualizer extends EventEmitter {
           // Drive access error or timeout, skip
         }
 
-        // Also scan for .refile pointers on this drive
-        const refileScanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Filter '*.refile' -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
+        // Also scan for virtualized pointer files on this drive
+        const extFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
+        const refileScanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Include ${extFilter} -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
 
         try {
           const refileOutput = await runPs(refileScanScript)
@@ -311,8 +312,8 @@ export class DiskVirtualizer extends EventEmitter {
           meta: { mode: meta.mode, mtime: meta.mtime, atime: meta.atime },
         })
 
-        // Write pointer file
-        const refilePath = getRefilePath(filePath)
+        // Write pointer file (extension based on MIME type)
+        const refilePath = getRefilePath(filePath, mimeType)
         writeRefilePointer(refilePath, pointer)
 
         // Verify pointer was written correctly
@@ -366,7 +367,7 @@ export class DiskVirtualizer extends EventEmitter {
           continue
         }
 
-        const originalPath = refilePath.replace(/\.refile$/, '')
+        const originalPath = getOriginalPath(refilePath)
         if (isSystemPath(originalPath)) {
           errors.push(`${refilePath}: restoring to system path, skipped`)
           continue
@@ -446,7 +447,8 @@ export class DiskVirtualizer extends EventEmitter {
         const drive = `${letter}:\\`
 
         try {
-          const refileScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Filter '*.refile' -ErrorAction SilentlyContinue | Select-Object FullName | ConvertTo-Json -Compress`
+          const statusExtFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
+          const refileScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Include ${statusExtFilter} -ErrorAction SilentlyContinue | Select-Object FullName | ConvertTo-Json -Compress`
           const output = await runPs(refileScript)
           const parsed = output.trim()
           if (!parsed) continue

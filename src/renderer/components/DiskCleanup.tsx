@@ -310,6 +310,14 @@ export function DiskCleanup() {
               {t('diskcleanup.freed', locale)}: {cleanResult.cleaned.length} item{cleanResult.cleaned.length !== 1 ? 's' : ''} ({formatBytes(cleanResult.totalFreed)})
             </div>
           )}
+          {cleanResult.cleaned.some((c) => c.path.toLowerCase().includes('node_modules')) && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded bg-amber-500/10 border border-amber-500/20">
+              <span className="text-amber-400 text-sm flex-shrink-0">!</span>
+              <span className="text-xs text-amber-300/90">
+                {t('diskcleanup.reinstallHint', locale)}
+              </span>
+            </div>
+          )}
           {cleanResult.failed.length > 0 && (
             <div className="space-y-1">
               <div className="text-sm text-red-400">{t('diskcleanup.failed', locale)}:</div>

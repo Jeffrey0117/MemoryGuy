@@ -205,6 +205,10 @@ const translations = {
   'diskcleanup.browserCache': { en: 'Browser Cache', zh: '瀏覽器快取' },
   'diskcleanup.recycleBin': { en: 'Recycle Bin', zh: '資源回收筒' },
   'diskcleanup.selectAll': { en: 'Select All', zh: '全選' },
+  'diskcleanup.reinstallHint': {
+    en: 'node_modules deleted — run "npm install" in affected projects before starting them',
+    zh: 'node_modules 已刪除 — 啟動專案前請先在該目錄執行 npm install',
+  },
 } as const;
 
 type TranslationKey = keyof typeof translations;

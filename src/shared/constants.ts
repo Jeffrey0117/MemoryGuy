@@ -58,6 +58,16 @@ export const IPC = {
   CANCEL_DISK_SCAN: 'cancel-disk-scan',
   ON_DISK_SCAN_PROGRESS: 'on-disk-scan-progress',
 
+  // Disk virtualization
+  VIRT_SCAN: 'virt-scan',
+  VIRT_PUSH: 'virt-push',
+  VIRT_PULL: 'virt-pull',
+  VIRT_STATUS: 'virt-status',
+  VIRT_CANCEL: 'virt-cancel',
+  VIRT_CONFIG_LOAD: 'virt-config-load',
+  VIRT_CONFIG_SAVE: 'virt-config-save',
+  ON_VIRT_PROGRESS: 'on-virt-progress',
+
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',
   ON_PROCESS_UPDATE: 'on-process-update',

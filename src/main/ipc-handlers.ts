@@ -12,8 +12,9 @@ import type { HookGenerator } from './services/hook-generator';
 import type { StartupManager } from './services/startup-manager';
 import type { EnvReader } from './services/env-reader';
 import type { DiskCleaner } from './services/disk-cleaner';
+import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
 import { killByPid } from './services/process-killer';
-import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress } from '@shared/types';
+import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress } from '@shared/types';
 
 interface Deps {
   systemMonitor: SystemMonitor;
@@ -28,6 +29,7 @@ interface Deps {
   startupManager: StartupManager;
   envReader: EnvReader;
   diskCleaner: DiskCleaner;
+  diskVirtualizer: DiskVirtualizer;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -35,7 +37,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -318,6 +320,57 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.ON_DISK_SCAN_PROGRESS, progress);
+    }
+  });
+
+  // --- Disk virtualization ---
+  ipcMain.handle(IPC.VIRT_SCAN, async (_event, thresholdBytes: unknown) => {
+    if (typeof thresholdBytes !== 'number' || thresholdBytes < 1_048_576 || thresholdBytes > 10_737_418_240) {
+      return { items: [], totalSize: 0, scanDurationMs: 0 };
+    }
+    return diskVirtualizer.scan({ thresholdBytes });
+  });
+
+  ipcMain.handle(IPC.VIRT_PUSH, async (_event, filePaths: unknown) => {
+    if (!Array.isArray(filePaths) || filePaths.length === 0 || filePaths.length > 500) {
+      return { pushed: 0, failed: 0, freedBytes: 0, errors: ['Invalid file paths'] };
+    }
+    const valid = filePaths.filter((p): p is string => typeof p === 'string' && p.length > 0 && p.length < 2048);
+    if (valid.length === 0) return { pushed: 0, failed: 0, freedBytes: 0, errors: ['No valid paths'] };
+    return diskVirtualizer.push(valid);
+  });
+
+  ipcMain.handle(IPC.VIRT_PULL, async (_event, refilePaths: unknown) => {
+    if (!Array.isArray(refilePaths) || refilePaths.length === 0 || refilePaths.length > 500) {
+      return { pulled: 0, failed: 0, restoredBytes: 0, errors: ['Invalid file paths'] };
+    }
+    const valid = refilePaths.filter((p): p is string => typeof p === 'string' && p.endsWith('.refile') && p.length < 2048);
+    if (valid.length === 0) return { pulled: 0, failed: 0, restoredBytes: 0, errors: ['No valid paths'] };
+    return diskVirtualizer.pull(valid);
+  });
+
+  ipcMain.handle(IPC.VIRT_STATUS, () => {
+    return diskVirtualizer.getStatus();
+  });
+
+  ipcMain.handle(IPC.VIRT_CANCEL, () => {
+    diskVirtualizer.cancel();
+  });
+
+  ipcMain.handle(IPC.VIRT_CONFIG_LOAD, () => {
+    return diskVirtualizer.loadConfig();
+  });
+
+  ipcMain.handle(IPC.VIRT_CONFIG_SAVE, (_event, config: unknown) => {
+    const validated = validateConfig(config);
+    if (!validated) return;
+    diskVirtualizer.saveConfig(validated);
+  });
+
+  diskVirtualizer.on('virt-progress', (progress: VirtProgress) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_VIRT_PROGRESS, progress);
     }
   });
 

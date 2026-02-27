@@ -7,6 +7,7 @@ import { DevServers } from './components/DevServers';
 import { StartupPanel } from './components/StartupPanel';
 import { EnvVarsPanel } from './components/EnvVarsPanel';
 import { DiskCleanup } from './components/DiskCleanup';
+import { DiskVirtualize } from './components/DiskVirtualize';
 import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
 import { useAppStore } from './stores/app-store';
@@ -35,14 +36,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup' | 'virtualize';
 
-const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' | 'tab.startup' | 'tab.envvars' | 'tab.diskcleanup' }[] = [
+const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' | 'tab.startup' | 'tab.envvars' | 'tab.diskcleanup' | 'tab.virtualize' }[] = [
   { id: 'dashboard', key: 'tab.dashboard' },
   { id: 'processes', key: 'tab.processes' },
   { id: 'guardian', key: 'tab.guardian' },
   { id: 'devservers', key: 'tab.devservers' },
   { id: 'diskcleanup', key: 'tab.diskcleanup' },
+  { id: 'virtualize', key: 'tab.virtualize' },
   { id: 'startup', key: 'tab.startup' },
   { id: 'envvars', key: 'tab.envvars' },
   { id: 'actions', key: 'tab.actions' },
@@ -87,6 +89,7 @@ export function App() {
           {activeTab === 'startup' && <StartupPanel />}
           {activeTab === 'envvars' && <EnvVarsPanel />}
           {activeTab === 'diskcleanup' && <DiskCleanup />}
+          {activeTab === 'virtualize' && <DiskVirtualize />}
         </ErrorBoundary>
       </main>
     </div>

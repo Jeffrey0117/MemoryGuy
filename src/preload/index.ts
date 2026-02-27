@@ -91,6 +91,20 @@ contextBridge.exposeInMainWorld('memoryGuy', {
     return () => { ipcRenderer.removeListener(IPC.ON_DISK_SCAN_PROGRESS, handler); };
   },
 
+  // Disk virtualization
+  virtScan: (thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_SCAN, thresholdBytes),
+  virtPush: (filePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PUSH, filePaths),
+  virtPull: (refilePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PULL, refilePaths),
+  virtStatus: () => ipcRenderer.invoke(IPC.VIRT_STATUS),
+  virtCancel: () => ipcRenderer.invoke(IPC.VIRT_CANCEL),
+  virtConfigLoad: () => ipcRenderer.invoke(IPC.VIRT_CONFIG_LOAD),
+  virtConfigSave: (config: unknown) => ipcRenderer.invoke(IPC.VIRT_CONFIG_SAVE, config),
+  onVirtProgress: (callback: (progress: unknown) => void) => {
+    const handler = (_: unknown, data: unknown) => callback(data);
+    ipcRenderer.on(IPC.ON_VIRT_PROGRESS, handler);
+    return () => { ipcRenderer.removeListener(IPC.ON_VIRT_PROGRESS, handler); };
+  },
+
   onProcessTerminated: (callback: (event: unknown) => void) => {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_PROCESS_TERMINATED, handler);

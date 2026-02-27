@@ -208,6 +208,69 @@ export interface DiskCleanResult {
   readonly totalFreed: number
 }
 
+// --- Disk virtualization ---
+
+export interface VirtScanItem {
+  readonly path: string
+  readonly size: number
+  readonly mime: string
+  readonly mtime: number
+  readonly isVirtualized: boolean
+}
+
+export interface VirtScanResult {
+  readonly items: readonly VirtScanItem[]
+  readonly totalSize: number
+  readonly scanDurationMs: number
+}
+
+export interface VirtProgress {
+  readonly phase: 'scanning' | 'hashing' | 'uploading' | 'downloading'
+  readonly current: number
+  readonly total: number
+  readonly currentFile: string
+  readonly bytesProcessed: number
+}
+
+export interface VirtPushResult {
+  readonly pushed: number
+  readonly failed: number
+  readonly freedBytes: number
+  readonly errors: readonly string[]
+}
+
+export interface VirtPullResult {
+  readonly pulled: number
+  readonly failed: number
+  readonly restoredBytes: number
+  readonly errors: readonly string[]
+}
+
+export interface VirtStatusResult {
+  readonly virtualizedFiles: number
+  readonly savedBytes: number
+  readonly hasConfig: boolean
+}
+
+export interface VirtConfig {
+  readonly defaultBackend: string
+  readonly backends: Readonly<Record<string, {
+    readonly type: 'http-upload' | 's3' | 'duk'
+    readonly endpoint: string
+    readonly fieldName?: string
+    readonly responseUrlPath?: string
+    readonly headers?: Readonly<Record<string, string>>
+    readonly bucket?: string
+    readonly region?: string
+    readonly accessKeyId?: string
+    readonly secretAccessKey?: string
+    readonly prefix?: string
+    readonly publicUrlBase?: string
+    readonly variant?: 'duky' | 'dukic' | 'dukbox'
+    readonly apiKey?: string
+  }>>
+}
+
 // --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
@@ -265,6 +328,16 @@ export interface MemoryGuyAPI {
   executeDiskCleanup: (paths: string[], sizes: Record<string, number>) => Promise<DiskCleanResult>
   cancelDiskScan: () => Promise<void>
   onDiskScanProgress: (callback: (progress: DiskScanProgress) => void) => () => void
+
+  // Disk virtualization
+  virtScan: (thresholdBytes: number) => Promise<VirtScanResult>
+  virtPush: (filePaths: string[]) => Promise<VirtPushResult>
+  virtPull: (refilePaths: string[]) => Promise<VirtPullResult>
+  virtStatus: () => Promise<VirtStatusResult>
+  virtCancel: () => Promise<void>
+  virtConfigLoad: () => Promise<VirtConfig | null>
+  virtConfigSave: (config: VirtConfig) => Promise<void>
+  onVirtProgress: (callback: (progress: VirtProgress) => void) => () => void
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

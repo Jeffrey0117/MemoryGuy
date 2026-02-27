@@ -143,6 +143,11 @@ const translations = {
   'devservers.search': { en: 'Search servers...', zh: '搜尋伺服器...' },
   'devservers.group': { en: 'Group', zh: '分組' },
   'devservers.ungrouped': { en: 'Standalone', zh: '獨立' },
+  'devservers.autoRestart': { en: 'Auto-Restart', zh: '自動重啟' },
+  'devservers.protected': { en: 'Protected', zh: '受保護' },
+  'devservers.protectGroup': { en: 'Protect Group', zh: '保護群組' },
+  'devservers.autoRestartOn': { en: 'Auto-restart enabled', zh: '已啟用自動重啟' },
+  'devservers.autoRestartOff': { en: 'Enable auto-restart', zh: '啟用自動重啟' },
 
   // Startup Programs
   'tab.startup': { en: 'Startup', zh: '開機程式' },

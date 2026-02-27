@@ -65,9 +65,21 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   getDevServers: () => ipcRenderer.invoke(IPC.GET_DEV_SERVERS),
   scanDevServers: () => ipcRenderer.invoke(IPC.SCAN_DEV_SERVERS),
   openExternalUrl: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL_URL, url),
+  setAutoRestart: (port: number, enabled: boolean) => ipcRenderer.invoke(IPC.SET_AUTO_RESTART, port, enabled),
+  getAutoRestartPorts: () => ipcRenderer.invoke(IPC.GET_AUTO_RESTART_PORTS),
+  enableGroupAutoRestart: (ports: number[]) => ipcRenderer.invoke(IPC.ENABLE_GROUP_AUTO_RESTART, ports),
 
   // Hook generator
   generateHook: () => ipcRenderer.invoke(IPC.GENERATE_HOOK),
+
+  // Startup programs
+  getStartupItems: () => ipcRenderer.invoke(IPC.GET_STARTUP_ITEMS),
+  toggleStartupItem: (id: string) => ipcRenderer.invoke(IPC.TOGGLE_STARTUP_ITEM, id),
+  removeStartupItem: (id: string) => ipcRenderer.invoke(IPC.REMOVE_STARTUP_ITEM, id),
+
+  // Environment variables
+  getEnvVars: () => ipcRenderer.invoke(IPC.GET_ENV_VARS),
+  copyToClipboard: (text: string) => ipcRenderer.invoke(IPC.COPY_TO_CLIPBOARD, text),
 
   onProcessTerminated: (callback: (event: unknown) => void) => {
     const handler = (_: unknown, data: unknown) => callback(data);
@@ -79,5 +91,11 @@ contextBridge.exposeInMainWorld('memoryGuy', {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_DEV_SERVERS_UPDATE, handler);
     return () => { ipcRenderer.removeListener(IPC.ON_DEV_SERVERS_UPDATE, handler); };
+  },
+
+  onServerRestarted: (callback: (event: unknown) => void) => {
+    const handler = (_: unknown, data: unknown) => callback(data);
+    ipcRenderer.on(IPC.ON_SERVER_RESTARTED, handler);
+    return () => { ipcRenderer.removeListener(IPC.ON_SERVER_RESTARTED, handler); };
   },
 });

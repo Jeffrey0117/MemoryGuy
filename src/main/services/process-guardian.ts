@@ -6,6 +6,9 @@ import type { ProtectionStore } from './protection-store';
 import type { ProcessInfo, GuardianEvent } from '@shared/types';
 import { GUARDIAN_EVENT_LOG_MAX } from '@shared/constants';
 
+// Process must be watched for at least this long before termination triggers a notification
+const MIN_WATCH_DURATION_MS = 5_000;
+
 interface WatchedProcess {
   readonly pid: number;
   readonly name: string;
@@ -71,6 +74,10 @@ export class ProcessGuardian extends EventEmitter {
 
       updatedWatched = new Map(updatedWatched);
       updatedWatched.delete(pid);
+
+      // Skip short-lived processes — they are transient children (e.g. node scripts)
+      const watchDuration = now - watched.detectedAt;
+      if (watchDuration < MIN_WATCH_DURATION_MS) continue;
 
       const ruleLabel = this.findRuleLabel(watched.name);
       terminatedEvents.push({

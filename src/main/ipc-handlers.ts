@@ -1,5 +1,5 @@
-import { ipcMain, BrowserWindow, shell } from 'electron';
-import { IPC } from '@shared/constants';
+import { ipcMain, BrowserWindow, shell, clipboard } from 'electron';
+import { IPC, DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX } from '@shared/constants';
 import type { SystemMonitor } from './services/system-monitor';
 import type { ProcessMonitor } from './services/process-monitor';
 import type { MemoryTracker } from './services/memory-tracker';
@@ -7,7 +7,10 @@ import type { Optimizer } from './services/optimizer';
 import type { ProtectionStore } from './services/protection-store';
 import type { ProcessGuardian } from './services/process-guardian';
 import type { PortScanner } from './services/port-scanner';
+import type { DevServerManager } from './services/dev-server-manager';
 import type { HookGenerator } from './services/hook-generator';
+import type { StartupManager } from './services/startup-manager';
+import type { EnvReader } from './services/env-reader';
 import { killByPid } from './services/process-killer';
 import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer } from '@shared/types';
 
@@ -19,7 +22,10 @@ interface Deps {
   protectionStore: ProtectionStore;
   processGuardian: ProcessGuardian;
   portScanner: PortScanner;
+  devServerManager: DevServerManager;
   hookGenerator: HookGenerator;
+  startupManager: StartupManager;
+  envReader: EnvReader;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -27,7 +33,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, hookGenerator, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -198,11 +204,20 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
 
   // --- Dev servers ---
   ipcMain.handle(IPC.GET_DEV_SERVERS, () => {
-    return portScanner.getDevServers();
+    return portScanner.getDevServers().map((s) => ({
+      ...s,
+      autoRestartEnabled: devServerManager.getAutoRestart(s.port),
+      isProtected: protectionStore.isProtected(s.processName),
+    }));
   });
 
-  ipcMain.handle(IPC.SCAN_DEV_SERVERS, () => {
-    return portScanner.scan();
+  ipcMain.handle(IPC.SCAN_DEV_SERVERS, async () => {
+    const servers = await portScanner.scan();
+    return servers.map((s) => ({
+      ...s,
+      autoRestartEnabled: devServerManager.getAutoRestart(s.port),
+      isProtected: protectionStore.isProtected(s.processName),
+    }));
   });
 
   ipcMain.handle(IPC.OPEN_EXTERNAL_URL, (_event, url: unknown) => {
@@ -217,9 +232,57 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     }
   });
 
+  ipcMain.handle(IPC.SET_AUTO_RESTART, (_event, port: unknown, enabled: unknown) => {
+    if (!Number.isInteger(port)) return;
+    const p = port as number;
+    if (p < DEV_PORT_RANGE_MIN || p > DEV_PORT_RANGE_MAX) return;
+    if (typeof enabled !== 'boolean') return;
+    devServerManager.setAutoRestart(p, enabled);
+  });
+
+  ipcMain.handle(IPC.GET_AUTO_RESTART_PORTS, () => {
+    return devServerManager.getAutoRestartPorts();
+  });
+
+  ipcMain.handle(IPC.ENABLE_GROUP_AUTO_RESTART, (_event, ports: unknown) => {
+    if (!Array.isArray(ports) || ports.length > 50) return;
+    if (!ports.every((p) => Number.isInteger(p) && p >= DEV_PORT_RANGE_MIN && p <= DEV_PORT_RANGE_MAX)) return;
+    devServerManager.enableBatch(ports);
+  });
+
   // --- Hook generator ---
   ipcMain.handle(IPC.GENERATE_HOOK, () => {
     return hookGenerator.generate();
+  });
+
+  // --- Startup programs ---
+  ipcMain.handle(IPC.GET_STARTUP_ITEMS, () => {
+    return startupManager.getStartupItems();
+  });
+
+  ipcMain.handle(IPC.TOGGLE_STARTUP_ITEM, (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) {
+      return { success: false, error: 'Invalid item ID' };
+    }
+    return startupManager.toggleStartupItem(id);
+  });
+
+  ipcMain.handle(IPC.REMOVE_STARTUP_ITEM, (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) {
+      return { success: false, error: 'Invalid item ID' };
+    }
+    return startupManager.removeStartupItem(id);
+  });
+
+  // --- Environment variables ---
+  ipcMain.handle(IPC.GET_ENV_VARS, () => {
+    return envReader.getEnvVars();
+  });
+
+  ipcMain.handle(IPC.COPY_TO_CLIPBOARD, (_event, text: unknown) => {
+    if (typeof text !== 'string') return;
+    if (text.length > 65_536) return;
+    clipboard.writeText(text);
   });
 
   // --- Push events ---
@@ -254,7 +317,26 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
   portScanner.on('dev-servers-update', (servers: DevServer[]) => {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
-      win.webContents.send(IPC.ON_DEV_SERVERS_UPDATE, servers);
+      const enriched = servers.map((s) => ({
+        ...s,
+        autoRestartEnabled: devServerManager.getAutoRestart(s.port),
+        isProtected: protectionStore.isProtected(s.processName),
+      }));
+      win.webContents.send(IPC.ON_DEV_SERVERS_UPDATE, enriched);
+    }
+  });
+
+  devServerManager.on('server-restarted', (event: { port: number; processName: string; success: boolean; timestamp: number }) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_SERVER_RESTARTED, event);
+    }
+  });
+
+  devServerManager.on('restart-failed', (event: { port: number; processName: string; success: boolean; timestamp: number }) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_SERVER_RESTARTED, event);
     }
   });
 }

@@ -33,9 +33,24 @@ export const IPC = {
   GET_DEV_SERVERS: 'get-dev-servers',
   SCAN_DEV_SERVERS: 'scan-dev-servers',
   OPEN_EXTERNAL_URL: 'open-external-url',
+  SET_AUTO_RESTART: 'set-auto-restart',
+  GET_AUTO_RESTART_PORTS: 'get-auto-restart-ports',
+  ENABLE_GROUP_AUTO_RESTART: 'enable-group-auto-restart',
+
+  // Push events — auto-restart
+  ON_SERVER_RESTARTED: 'on-server-restarted',
 
   // Hook generator
   GENERATE_HOOK: 'generate-hook',
+
+  // Startup programs
+  GET_STARTUP_ITEMS: 'get-startup-items',
+  TOGGLE_STARTUP_ITEM: 'toggle-startup-item',
+  REMOVE_STARTUP_ITEM: 'remove-startup-item',
+
+  // Environment variables
+  GET_ENV_VARS: 'get-env-vars',
+  COPY_TO_CLIPBOARD: 'copy-to-clipboard',
 
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',

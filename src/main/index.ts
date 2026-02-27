@@ -7,8 +7,11 @@ import { MemoryTracker } from './services/memory-tracker';
 import { ProtectionStore } from './services/protection-store';
 import { ProcessGuardian } from './services/process-guardian';
 import { PortScanner } from './services/port-scanner';
+import { DevServerManager } from './services/dev-server-manager';
 import { Optimizer } from './services/optimizer';
 import { HookGenerator } from './services/hook-generator';
+import { StartupManager } from './services/startup-manager';
+import { EnvReader } from './services/env-reader';
 import { setupIpcHandlers } from './ipc-handlers';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
@@ -41,8 +44,11 @@ const processMonitor = new ProcessMonitor();
 const memoryTracker = new MemoryTracker(processMonitor);
 const processGuardian = new ProcessGuardian(processMonitor, protectionStore);
 const portScanner = new PortScanner(processMonitor);
+const devServerManager = new DevServerManager(portScanner, protectionStore);
 const optimizer = new Optimizer(systemMonitor, processMonitor, memoryTracker, protectionStore);
 const hookGenerator = new HookGenerator(protectionStore);
+const startupManager = new StartupManager();
+const envReader = new EnvReader();
 
 function getPreloadPath(): string {
   // Forge Vite plugin provides the correct path at build time
@@ -116,7 +122,10 @@ async function initialize(): Promise<void> {
     protectionStore,
     processGuardian,
     portScanner,
+    devServerManager,
     hookGenerator,
+    startupManager,
+    envReader,
     getMainWindow: () => mainWindow,
   });
 
@@ -126,6 +135,7 @@ async function initialize(): Promise<void> {
   memoryTracker.start();
   processGuardian.start();
   portScanner.start();
+  devServerManager.start();
   optimizer.start();
 
   await createWindow();
@@ -143,6 +153,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   optimizer.stop();
+  devServerManager.stop();
   portScanner.stop();
   processGuardian.stop();
   memoryTracker.stop();

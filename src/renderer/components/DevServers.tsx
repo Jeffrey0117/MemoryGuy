@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDevServers } from '../hooks/useDevServers';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
@@ -12,14 +12,64 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+// --- Status badges ---
+
+function AutoRestartBadge({ locale }: { locale: 'en' | 'zh' }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400" title={t('devservers.autoRestartOn', locale)}>
+      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M1 4v6h6M23 20v-6h-6" />
+        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+      </svg>
+      {t('devservers.autoRestart', locale)}
+    </span>
+  );
+}
+
+function ProtectedBadge({ locale }: { locale: 'en' | 'zh' }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400" title={t('devservers.protected', locale)}>
+      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L3 7v5c0 5.25 3.83 10.17 9 11.37C17.17 22.17 21 17.25 21 12V7l-9-5z" />
+      </svg>
+      {t('devservers.protected', locale)}
+    </span>
+  );
+}
+
+function CompactAutoRestartIcon({ locale }: { locale: 'en' | 'zh' }) {
+  return (
+    <span className="flex-shrink-0" title={t('devservers.autoRestartOn', locale)}>
+      <svg className="w-3.5 h-3.5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M1 4v6h6M23 20v-6h-6" />
+        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+      </svg>
+    </span>
+  );
+}
+
+function CompactProtectedIcon({ locale }: { locale: 'en' | 'zh' }) {
+  return (
+    <span className="flex-shrink-0" title={t('devservers.protected', locale)}>
+      <svg className="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L3 7v5c0 5.25 3.83 10.17 9 11.37C17.17 22.17 21 17.25 21 12V7l-9-5z" />
+      </svg>
+    </span>
+  );
+}
+
+// --- ServerCard (flat mode) ---
+
 function ServerCard({
   server,
   locale,
   onOpen,
+  onRefresh,
 }: {
   server: DevServer;
   locale: 'en' | 'zh';
   onOpen: (url: string) => void;
+  onRefresh: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [killing, setKilling] = useState(false);
@@ -44,21 +94,34 @@ function ServerCard({
     setConfirming(false);
   };
 
-  const handleProtect = () => {
-    api.addProtectionRule({
-      pattern: server.processName,
-      label: `${server.processName} (port ${server.port})`,
-      mode: 'protect',
-      enabled: true,
-    });
+  const handleToggleAutoRestart = async () => {
+    try {
+      await api.setAutoRestart(server.port, !server.autoRestartEnabled);
+    } catch {
+      // IPC may not be registered yet
+    }
+    onRefresh();
   };
 
+  const hasProtection = server.autoRestartEnabled || server.isProtected;
+  const cardBorder = hasProtection
+    ? server.isProtected && server.autoRestartEnabled
+      ? 'border border-green-500/40 ring-1 ring-green-500/10'
+      : server.autoRestartEnabled
+        ? 'border border-blue-500/40 ring-1 ring-blue-500/10'
+        : 'border border-green-500/30'
+    : '';
+
   return (
-    <div className="card p-4 flex flex-col gap-3">
+    <div className={`card p-4 flex flex-col gap-3 transition-colors ${cardBorder}`}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-2xl font-bold text-mg-primary font-mono">:{server.port}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-mg-primary font-mono">:{server.port}</span>
+            {server.autoRestartEnabled && <AutoRestartBadge locale={locale} />}
+            {server.isProtected && <ProtectedBadge locale={locale} />}
+          </div>
           <div className="text-sm text-mg-muted">{server.processName}</div>
           <div className="text-xs text-mg-muted">PID {server.pid}</div>
         </div>
@@ -106,12 +169,17 @@ function ServerCard({
           {killing ? '...' : confirming ? t('devservers.killConfirm', locale) : t('devservers.kill', locale)}
         </button>
         <button
-          onClick={handleProtect}
-          className="text-xs px-3 py-1.5 rounded bg-mg-border/50 text-mg-muted hover:text-green-400 hover:bg-mg-border transition-colors"
-          title={t('devservers.addProtect', locale)}
+          onClick={handleToggleAutoRestart}
+          className={`text-xs px-3 py-1.5 rounded transition-colors ${
+            server.autoRestartEnabled
+              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+              : 'bg-mg-border/50 text-mg-muted hover:text-blue-400 hover:bg-mg-border'
+          }`}
+          title={server.autoRestartEnabled ? t('devservers.autoRestartOn', locale) : t('devservers.autoRestartOff', locale)}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L3 7v5c0 5.25 3.83 10.17 9 11.37C17.17 22.17 21 17.25 21 12V7l-9-5z" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M1 4v6h6M23 20v-6h-6" />
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
           </svg>
         </button>
       </div>
@@ -212,10 +280,12 @@ function ServerRow({
 
   const statusOk = server.httpStatus != null && server.httpStatus >= 200 && server.httpStatus < 400;
 
+  const rowProtected = server.autoRestartEnabled || server.isProtected;
+
   return (
     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-mg-card/80 ${
       isParent ? 'font-medium' : ''
-    }`}>
+    } ${rowProtected ? 'bg-green-500/[0.03]' : ''}`}>
       {/* Status dot */}
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
         server.httpStatus == null ? 'bg-mg-muted/40'
@@ -226,6 +296,12 @@ function ServerRow({
       <span className={`font-mono font-bold w-16 flex-shrink-0 ${color?.text ?? 'text-mg-primary'}`}>
         :{server.port}
       </span>
+
+      {/* Compact status icons */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {server.autoRestartEnabled && <CompactAutoRestartIcon locale={locale} />}
+        {server.isProtected && <CompactProtectedIcon locale={locale} />}
+      </div>
 
       {/* Process name + title */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -279,15 +355,20 @@ function GroupCard({
   colorIndex,
   locale,
   onOpen,
+  onRefresh,
 }: {
   group: ServerGroup;
   colorIndex: number;
   locale: 'en' | 'zh';
   onOpen: (url: string) => void;
+  onRefresh: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const isRealGroup = group.parent != null || group.children.length >= 2;
   const color = isRealGroup ? GROUP_COLORS[colorIndex % GROUP_COLORS.length] : undefined;
+
+  const allProtected = group.allServers.every((s) => s.autoRestartEnabled && s.isProtected);
+  const someProtected = group.allServers.some((s) => s.autoRestartEnabled || s.isProtected);
 
   const label = group.parent
     ? `${group.parent.processName} :${group.parent.port}`
@@ -297,46 +378,97 @@ function GroupCard({
 
   const totalRam = group.allServers.reduce((sum, s) => sum + (s.ram ?? 0), 0);
 
+  const handleProtectGroup = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const ports = group.allServers.map((s) => s.port);
+      await api.enableGroupAutoRestart(ports);
+      // Also add protection rules for each unique process name
+      const seen = new Set<string>();
+      for (const s of group.allServers) {
+        if (!seen.has(s.processName)) {
+          seen.add(s.processName);
+          await api.addProtectionRule({
+            pattern: s.processName,
+            label: `${s.processName} (group)`,
+            mode: 'protect',
+            enabled: true,
+          });
+        }
+      }
+    } catch {
+      // IPC may not be registered yet
+    }
+    onRefresh();
+  };
+
+  const protectionBorder = allProtected
+    ? 'border border-green-500/30 ring-1 ring-green-500/10'
+    : someProtected
+      ? 'border border-green-500/20'
+      : '';
+
   return (
-    <div className={`rounded-lg overflow-hidden ${
-      color ? `border-l-2 ${color.border}` : 'border-l-2 border-mg-border/40'
+    <div className={`rounded-lg overflow-hidden transition-colors ${
+      protectionBorder || (color ? `border-l-2 ${color.border}` : 'border-l-2 border-mg-border/40')
     }`}>
       {/* Group header */}
-      <button
-        onClick={() => setCollapsed((c) => !c)}
-        className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
-          color ? `${color.bg} hover:brightness-110` : 'bg-mg-card/40 hover:bg-mg-card/60'
-        }`}
-      >
+      <div className={`flex items-center gap-2 px-3 py-2 transition-colors ${
+        allProtected
+          ? 'bg-green-500/[0.06] hover:bg-green-500/[0.1]'
+          : color ? `${color.bg} hover:brightness-110` : 'bg-mg-card/40 hover:bg-mg-card/60'
+      }`}>
         {/* Collapse chevron */}
-        <svg
-          className={`w-3.5 h-3.5 text-mg-muted transition-transform ${collapsed ? '' : 'rotate-90'}`}
-          viewBox="0 0 24 24"
-          fill="currentColor"
-        >
-          <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
-        </svg>
+        <button onClick={() => setCollapsed((c) => !c)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+          <svg
+            className={`w-3.5 h-3.5 text-mg-muted transition-transform flex-shrink-0 ${collapsed ? '' : 'rotate-90'}`}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+          </svg>
 
-        {/* Color dot */}
-        {color && <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />}
+          {/* Color dot */}
+          {color && <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color.dot}`} />}
 
-        {/* Label */}
-        <span className={`text-sm font-medium ${color?.text ?? 'text-mg-muted'}`}>
-          {label}
-        </span>
+          {/* Label */}
+          <span className={`text-sm font-medium truncate ${color?.text ?? 'text-mg-muted'}`}>
+            {label}
+          </span>
 
-        {/* Count badge */}
-        <span className="text-xs text-mg-muted/60 ml-1">
-          {group.allServers.length} server{group.allServers.length !== 1 ? 's' : ''}
-        </span>
+          {/* Count badge */}
+          <span className="text-xs text-mg-muted/60 flex-shrink-0">
+            {group.allServers.length} server{group.allServers.length !== 1 ? 's' : ''}
+          </span>
+        </button>
+
+        {/* Protect group button / status */}
+        {isRealGroup && (
+          allProtected ? (
+            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-green-500/15 text-green-400 flex-shrink-0">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L3 7v5c0 5.25 3.83 10.17 9 11.37C17.17 22.17 21 17.25 21 12V7l-9-5z" />
+              </svg>
+              {t('devservers.protected', locale)}
+            </span>
+          ) : (
+            <button
+              onClick={handleProtectGroup}
+              className="text-xs px-2 py-1 rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors flex-shrink-0"
+              title={t('devservers.protectGroup', locale)}
+            >
+              {t('devservers.protectGroup', locale)}
+            </button>
+          )
+        )}
 
         {/* Total RAM */}
         {totalRam > 0 && (
-          <span className="text-xs text-mg-muted/60 ml-auto">
+          <span className="text-xs text-mg-muted/60 flex-shrink-0">
             {formatBytes(totalRam)}
           </span>
         )}
-      </button>
+      </div>
 
       {/* Members */}
       {!collapsed && (
@@ -444,6 +576,7 @@ export function DevServers() {
               colorIndex={idx}
               locale={locale}
               onOpen={openUrl}
+              onRefresh={scanNow}
             />
           ))}
         </div>
@@ -455,6 +588,7 @@ export function DevServers() {
               server={server}
               locale={locale}
               onOpen={openUrl}
+              onRefresh={scanNow}
             />
           ))}
         </div>

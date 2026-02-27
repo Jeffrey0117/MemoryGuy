@@ -165,6 +165,16 @@ export interface DevServer {
   readonly pageTitle?: string
   readonly ram?: number
   readonly cpu?: number
+  readonly commandLine?: string
+  readonly autoRestartEnabled?: boolean
+  readonly isProtected?: boolean
+}
+
+export interface AutoRestartEvent {
+  readonly port: number
+  readonly processName?: string
+  readonly success: boolean
+  readonly timestamp: number
 }
 
 // --- API exposed to renderer ---
@@ -203,6 +213,9 @@ export interface MemoryGuyAPI {
   getDevServers: () => Promise<DevServer[]>
   scanDevServers: () => Promise<DevServer[]>
   openExternalUrl: (url: string) => Promise<void>
+  setAutoRestart: (port: number, enabled: boolean) => Promise<void>
+  getAutoRestartPorts: () => Promise<number[]>
+  enableGroupAutoRestart: (ports: number[]) => Promise<void>
 
   // Hook generator
   generateHook: () => Promise<{ success: boolean; path?: string; error?: string }>
@@ -221,4 +234,5 @@ export interface MemoryGuyAPI {
   onProcessUpdate: (callback: (processes: ProcessInfo[]) => void) => () => void
   onProcessTerminated: (callback: (event: GuardianEvent) => void) => () => void
   onDevServersUpdate: (callback: (servers: DevServer[]) => void) => () => void
+  onServerRestarted: (callback: (event: AutoRestartEvent) => void) => () => void
 }

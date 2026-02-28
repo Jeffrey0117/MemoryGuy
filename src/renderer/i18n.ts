@@ -258,6 +258,7 @@ const translations = {
   'virt.config.general': { en: 'General', zh: '通用' },
   'virt.config.apiKey': { en: 'API Key', zh: 'API 金鑰' },
   'virt.config.routingHint': { en: 'Tip: duky=video, dukic=audio, dukbox=any file type', zh: '提示：duky=影片、dukic=音訊、dukbox=所有檔案類型' },
+  'virt.config.selfHostedHint': { en: 'Self-hosted refile server — POST /upload, GET file URL, HEAD verify', zh: '自架 refile 伺服器 — POST /upload 上傳、GET 檔案 URL、HEAD 驗證' },
   'virt.noConfig': { en: 'No backend configured', zh: '尚未設定後端' },
   'virt.noConfigHint': { en: 'Configure a storage backend to start virtualizing files', zh: '設定儲存後端以開始虛擬化檔案' },
   'virt.empty.push': { en: 'No large files found', zh: '未找到大檔案' },

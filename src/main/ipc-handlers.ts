@@ -14,6 +14,7 @@ import type { EnvReader } from './services/env-reader';
 import type { DiskCleaner } from './services/disk-cleaner';
 import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
 import { killByPid } from './services/process-killer';
+import { isRefilePath } from './services/refile/refile-format';
 import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress } from '@shared/types';
 
 interface Deps {
@@ -344,7 +345,7 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     if (!Array.isArray(refilePaths) || refilePaths.length === 0 || refilePaths.length > 500) {
       return { pulled: 0, failed: 0, restoredBytes: 0, errors: ['Invalid file paths'] };
     }
-    const valid = refilePaths.filter((p): p is string => typeof p === 'string' && p.endsWith('.refile') && p.length < 2048);
+    const valid = refilePaths.filter((p): p is string => typeof p === 'string' && isRefilePath(p) && p.length < 2048);
     if (valid.length === 0) return { pulled: 0, failed: 0, restoredBytes: 0, errors: ['No valid paths'] };
     return diskVirtualizer.pull(valid);
   });

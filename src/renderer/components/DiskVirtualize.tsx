@@ -36,7 +36,13 @@ const THRESHOLD_STEPS = [
   1024 * 1024 * 1024,    // 1 GB
 ];
 
-type BackendType = 'http-upload' | 'duk';
+type BackendType = 'http-upload' | 'duk' | 'self-hosted';
+
+const BACKEND_LABELS: Record<BackendType, string> = {
+  'self-hosted': 'Self-Hosted',
+  'duk': 'duk (ReFile Workers)',
+  'http-upload': 'HTTP Upload',
+};
 
 function ConfigPanel({
   config,
@@ -49,11 +55,21 @@ function ConfigPanel({
 }) {
   const current = config?.backends[config.defaultBackend];
   const [backendType, setBackendType] = useState<BackendType>(
-    (current?.type === 'duk' ? 'duk' : 'http-upload')
+    (current?.type as BackendType) ?? 'self-hosted'
+  );
+
+  // self-hosted fields
+  const [shEndpoint, setShEndpoint] = useState(
+    current?.type === 'self-hosted' ? current.endpoint : 'https://refile.isnowfriend.com'
+  );
+  const [shApiKey, setShApiKey] = useState(
+    current?.type === 'self-hosted' ? (current.apiKey ?? '') : ''
   );
 
   // http-upload fields
-  const [endpoint, setEndpoint] = useState(current?.endpoint ?? '');
+  const [endpoint, setEndpoint] = useState(
+    current?.type === 'http-upload' ? current.endpoint : ''
+  );
   const [fieldName, setFieldName] = useState(current?.fieldName ?? 'file');
   const [responseUrlPath, setResponseUrlPath] = useState(current?.responseUrlPath ?? 'data.url');
 
@@ -69,7 +85,19 @@ function ConfigPanel({
   );
 
   const handleSave = () => {
-    if (backendType === 'duk') {
+    if (backendType === 'self-hosted') {
+      if (!shEndpoint.trim() || !shApiKey.trim()) return;
+      onSave({
+        defaultBackend: 'self-hosted',
+        backends: {
+          'self-hosted': {
+            type: 'self-hosted',
+            endpoint: shEndpoint.trim(),
+            apiKey: shApiKey.trim(),
+          },
+        },
+      });
+    } else if (backendType === 'duk') {
       if (!dukEndpoint.trim() || !dukApiKey.trim()) return;
       onSave({
         defaultBackend: 'default',
@@ -99,9 +127,11 @@ function ConfigPanel({
   };
 
   const inputCls = 'mt-1 w-full px-3 py-1.5 text-sm rounded bg-mg-bg border border-mg-border/40 text-mg-text placeholder:text-mg-muted/50 focus:outline-none focus:border-mg-primary/50';
-  const canSave = backendType === 'duk'
-    ? dukEndpoint.trim() && dukApiKey.trim()
-    : endpoint.trim();
+  const canSave = backendType === 'self-hosted'
+    ? shEndpoint.trim() && shApiKey.trim()
+    : backendType === 'duk'
+      ? dukEndpoint.trim() && dukApiKey.trim()
+      : endpoint.trim();
 
   return (
     <div className="rounded-lg border border-mg-border/40 p-4 space-y-3">
@@ -109,7 +139,7 @@ function ConfigPanel({
 
       {/* Backend type selector */}
       <div className="flex gap-1">
-        {(['http-upload', 'duk'] as const).map((bt) => (
+        {(['self-hosted', 'duk', 'http-upload'] as const).map((bt) => (
           <button
             key={bt}
             onClick={() => setBackendType(bt)}
@@ -119,13 +149,31 @@ function ConfigPanel({
                 : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
             }`}
           >
-            {bt === 'duk' ? 'duk (ReFile Workers)' : 'HTTP Upload'}
+            {BACKEND_LABELS[bt]}
           </button>
         ))}
       </div>
 
       <div className="space-y-2">
-        {backendType === 'duk' ? (
+        {backendType === 'self-hosted' ? (
+          <>
+            <label className="block">
+              <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
+              <input type="text" value={shEndpoint} onChange={(e) => setShEndpoint(e.target.value)}
+                placeholder="https://refile.isnowfriend.com" className={inputCls} />
+            </label>
+
+            <label className="block">
+              <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
+              <input type="password" value={shApiKey} onChange={(e) => setShApiKey(e.target.value)}
+                placeholder="Bearer token" className={inputCls} />
+            </label>
+
+            <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
+              {t('virt.config.selfHostedHint', locale)}
+            </div>
+          </>
+        ) : backendType === 'duk' ? (
           <>
             {/* Variant selector */}
             <div>

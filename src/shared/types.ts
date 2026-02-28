@@ -255,7 +255,7 @@ export interface VirtStatusResult {
 export interface VirtConfig {
   readonly defaultBackend: string
   readonly backends: Readonly<Record<string, {
-    readonly type: 'http-upload' | 's3' | 'duk'
+    readonly type: 'http-upload' | 's3' | 'duk' | 'self-hosted'
     readonly endpoint: string
     readonly fieldName?: string
     readonly responseUrlPath?: string

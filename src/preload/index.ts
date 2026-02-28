@@ -92,8 +92,8 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   },
 
   // Disk virtualization
-  virtScan: (thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_SCAN, thresholdBytes),
-  virtScanFolder: (folderPath: string, thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_SCAN_FOLDER, folderPath, thresholdBytes),
+  virtScan: () => ipcRenderer.invoke(IPC.VIRT_SCAN),
+  virtScanFolder: (folderPath: string) => ipcRenderer.invoke(IPC.VIRT_SCAN_FOLDER, folderPath),
   virtSelectFolder: () => ipcRenderer.invoke(IPC.VIRT_SELECT_FOLDER),
   virtPush: (filePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PUSH, filePaths),
   virtPull: (refilePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PULL, refilePaths),

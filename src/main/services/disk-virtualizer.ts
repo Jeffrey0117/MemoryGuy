@@ -13,7 +13,6 @@ import { runPs, psEscape } from './powershell'
 import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult } from '@shared/types'
 
 const CONFIG_FILE = 'refile-config.json'
-const MIN_SIZE_BYTES = 1_048_576 // 1 MB hard minimum
 
 const EXCLUDED_DIR_NAMES = new Set([
   'windows',
@@ -113,8 +112,7 @@ export class DiskVirtualizer extends EventEmitter {
     fs.writeFileSync(this.getConfigPath(), JSON.stringify(validated, null, 2), 'utf-8')
   }
 
-  async scanFolder(folderPath: string, thresholdBytes: number): Promise<VirtScanResult> {
-    const threshold = Math.max(thresholdBytes, MIN_SIZE_BYTES)
+  async scanFolder(folderPath: string, _thresholdBytes?: number): Promise<VirtScanResult> {
     const resolved = path.resolve(folderPath)
     if (isSystemPath(resolved)) {
       return { items: [], totalSize: 0, scanDurationMs: 0 }
@@ -128,81 +126,73 @@ export class DiskVirtualizer extends EventEmitter {
     let scannedBytes = 0
 
     try {
-      // Scan for large files in folder
-      const scanScript = `Get-ChildItem -Path '${psEscape(resolved)}' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -ge ${threshold} -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::Hidden) -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::System) } | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
-
-      const output = await runPs(scanScript)
-      if (!signal.aborted && output.trim()) {
-        const parsed = output.trim()
-        const rawItems = JSON.parse(parsed.startsWith('[') ? parsed : `[${parsed}]`) as {
-          FullName: string
-          Length: number
-          LastWriteTime: string
-        }[]
-
-        for (const raw of rawItems) {
-          if (signal.aborted) break
-          if (isSystemPath(raw.FullName)) continue
-
-          const mimeType = lookup(raw.FullName) || 'application/octet-stream'
-          items.push({
-            path: raw.FullName,
-            size: raw.Length,
-            mime: mimeType,
-            mtime: new Date(raw.LastWriteTime).getTime(),
-            isVirtualized: false,
-          })
-          scannedBytes += raw.Length
-
-          this.emit('virt-progress', {
-            phase: 'scanning',
-            current: items.length,
-            total: 0,
-            currentFile: raw.FullName,
-            bytesProcessed: scannedBytes,
-          } satisfies VirtProgress)
-        }
+      // List files in the selected folder (non-recursive for speed)
+      const prevNoAsar = process.noAsar
+      process.noAsar = true
+      let entries: string[]
+      try {
+        entries = await fs.promises.readdir(resolved)
+      } finally {
+        process.noAsar = prevNoAsar
       }
 
-      // Also scan for existing pointer files in folder
-      if (!signal.aborted) {
-        const extFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
-        const refileScanScript = `Get-ChildItem -Path '${psEscape(resolved)}' -Recurse -File -Include ${extFilter} -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
+      for (const name of entries) {
+        if (signal.aborted) break
+        const fullPath = path.join(resolved, name)
+        if (fullPath.endsWith('.asar')) continue
+        if (isSystemPath(fullPath)) continue
 
+        let stat: fs.Stats
         try {
-          const refileOutput = await runPs(refileScanScript)
-          if (!signal.aborted && refileOutput.trim()) {
-            const rawRefiles = JSON.parse(refileOutput.trim().startsWith('[') ? refileOutput.trim() : `[${refileOutput.trim()}]`) as {
-              FullName: string
-              Length: number
-              LastWriteTime: string
-            }[]
-
-            for (const raw of rawRefiles) {
-              if (signal.aborted) break
-              if (isSystemPath(raw.FullName)) continue
-              const pointer = readRefilePointer(raw.FullName)
-              if (pointer) {
-                items.push({
-                  path: raw.FullName,
-                  size: pointer.size,
-                  mime: pointer.mime,
-                  mtime: new Date(raw.LastWriteTime).getTime(),
-                  isVirtualized: true,
-                })
-              }
-            }
-          }
+          stat = await fs.promises.lstat(fullPath)
         } catch {
-          // Skip errors
+          continue
         }
+        if (!stat.isFile()) continue
+
+        // Check if this is a pointer file (.refile, .repic, etc.)
+        if (isRefilePath(fullPath)) {
+          try {
+            const pointer = readRefilePointer(fullPath)
+            if (pointer) {
+              items.push({
+                path: fullPath,
+                size: pointer.size,
+                mime: pointer.mime,
+                mtime: stat.mtimeMs,
+                isVirtualized: true,
+              })
+            }
+          } catch {
+            // Skip unreadable pointer files
+          }
+          continue
+        }
+
+        // Regular file
+        const mimeType = lookup(fullPath) || 'application/octet-stream'
+        items.push({
+          path: fullPath,
+          size: stat.size,
+          mime: mimeType,
+          mtime: stat.mtimeMs,
+          isVirtualized: false,
+        })
+        scannedBytes += stat.size
+
+        this.emit('virt-progress', {
+          phase: 'scanning',
+          current: items.length,
+          total: 0,
+          currentFile: fullPath,
+          bytesProcessed: scannedBytes,
+        } satisfies VirtProgress)
       }
     } catch {
       // Scan failed
     } finally {
       this.abortController = null
     }
-
     items.sort((a, b) => b.size - a.size)
 
     return {
@@ -212,8 +202,7 @@ export class DiskVirtualizer extends EventEmitter {
     }
   }
 
-  async scan(options: { thresholdBytes: number }): Promise<VirtScanResult> {
-    const threshold = Math.max(options.thresholdBytes, MIN_SIZE_BYTES)
+  async scan(options: { thresholdBytes?: number }): Promise<VirtScanResult> {
     const startTime = Date.now()
     this.abortController = new AbortController()
     const { signal } = this.abortController
@@ -233,8 +222,8 @@ export class DiskVirtualizer extends EventEmitter {
 
         const drive = `${letter}:\\`
 
-        // Scan for large files
-        const scanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -ge ${threshold} -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::Hidden) -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::System) } | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
+        // Scan all non-hidden, non-system files
+        const scanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { -not $_.Attributes.HasFlag([System.IO.FileAttributes]::Hidden) -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::System) } | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
 
         try {
           const output = await runPs(scanScript)
@@ -364,10 +353,6 @@ export class DiskVirtualizer extends EventEmitter {
         }
 
         const stat = fs.statSync(filePath)
-        if (stat.size < MIN_SIZE_BYTES) {
-          errors.push(`${filePath}: too small (${stat.size} bytes)`)
-          continue
-        }
 
         this.emit('virt-progress', {
           phase: 'hashing',

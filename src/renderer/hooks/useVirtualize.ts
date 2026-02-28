@@ -38,7 +38,7 @@ export function useVirtualize() {
     return unsub;
   }, []);
 
-  const scan = useCallback(async (thresholdBytes: number) => {
+  const scan = useCallback(async () => {
     setIsScanning(true);
     setItems([]);
     setPushResult(null);
@@ -46,7 +46,7 @@ export function useVirtualize() {
     setScanDurationMs(0);
     setProgress(null);
     try {
-      const result: VirtScanResult = await api.virtScan(thresholdBytes);
+      const result: VirtScanResult = await api.virtScan();
       setItems(result.items);
       setScanDurationMs(result.scanDurationMs);
     } catch {
@@ -57,7 +57,7 @@ export function useVirtualize() {
     }
   }, []);
 
-  const scanFolder = useCallback(async (folderPath: string, thresholdBytes: number) => {
+  const scanFolder = useCallback(async (folderPath: string) => {
     setIsScanning(true);
     setItems([]);
     setPushResult(null);
@@ -65,7 +65,7 @@ export function useVirtualize() {
     setScanDurationMs(0);
     setProgress(null);
     try {
-      const result: VirtScanResult = await api.virtScanFolder(folderPath, thresholdBytes);
+      const result: VirtScanResult = await api.virtScanFolder(folderPath);
       setItems(result.items);
       setScanDurationMs(result.scanDurationMs);
     } catch {

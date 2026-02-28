@@ -1,19 +1,14 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useVirtualize } from '../hooks/useVirtualize';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
-import type { VirtScanItem, VirtConfig, WatchFolder } from '@shared/types';
+import type { VirtScanItem, VirtConfig } from '@shared/types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 type MimeFilter = 'all' | 'video' | 'image' | 'archive' | 'document' | 'other';
@@ -26,15 +21,6 @@ function getMimeCategory(mime: string): MimeFilter {
   return 'other';
 }
 
-const THRESHOLD_STEPS = [
-  10 * 1024 * 1024,      // 10 MB
-  25 * 1024 * 1024,      // 25 MB
-  50 * 1024 * 1024,      // 50 MB
-  100 * 1024 * 1024,     // 100 MB
-  250 * 1024 * 1024,     // 250 MB
-  500 * 1024 * 1024,     // 500 MB
-  1024 * 1024 * 1024,    // 1 GB
-];
 
 type BackendType = 'http-upload' | 'duk' | 'self-hosted';
 
@@ -58,22 +44,19 @@ function ConfigPanel({
     (current?.type as BackendType) ?? 'self-hosted'
   );
 
-  // self-hosted fields
   const [shEndpoint, setShEndpoint] = useState(
     current?.type === 'self-hosted' ? current.endpoint : 'https://refile.isnowfriend.com'
   );
   const [shApiKey, setShApiKey] = useState(
-    current?.type === 'self-hosted' ? (current.apiKey ?? '') : ''
+    current?.type === 'self-hosted' ? (current.apiKey ?? '') : 'refile-prod-key-2026'
   );
 
-  // http-upload fields
   const [endpoint, setEndpoint] = useState(
     current?.type === 'http-upload' ? current.endpoint : ''
   );
   const [fieldName, setFieldName] = useState(current?.fieldName ?? 'file');
   const [responseUrlPath, setResponseUrlPath] = useState(current?.responseUrlPath ?? 'data.url');
 
-  // duk fields
   const [dukEndpoint, setDukEndpoint] = useState(
     current?.type === 'duk' ? current.endpoint : 'http://localhost:8787'
   );
@@ -137,7 +120,6 @@ function ConfigPanel({
     <div className="rounded-lg border border-mg-border/40 p-4 space-y-3">
       <h3 className="text-sm font-medium text-mg-text">{t('virt.config.title', locale)}</h3>
 
-      {/* Backend type selector */}
       <div className="flex gap-1">
         {(['self-hosted', 'duk', 'http-upload'] as const).map((bt) => (
           <button
@@ -162,20 +144,17 @@ function ConfigPanel({
               <input type="text" value={shEndpoint} onChange={(e) => setShEndpoint(e.target.value)}
                 placeholder="https://refile.isnowfriend.com" className={inputCls} />
             </label>
-
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
               <input type="password" value={shApiKey} onChange={(e) => setShApiKey(e.target.value)}
                 placeholder="Bearer token" className={inputCls} />
             </label>
-
             <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
               {t('virt.config.selfHostedHint', locale)}
             </div>
           </>
         ) : backendType === 'duk' ? (
           <>
-            {/* Variant selector */}
             <div>
               <span className="text-xs text-mg-muted">{t('virt.config.variant', locale)}</span>
               <div className="flex gap-1 mt-1">
@@ -196,20 +175,16 @@ function ConfigPanel({
                 ))}
               </div>
             </div>
-
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
               <input type="text" value={dukEndpoint} onChange={(e) => setDukEndpoint(e.target.value)}
                 placeholder="http://localhost:8787" className={inputCls} />
             </label>
-
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
               <input type="password" value={dukApiKey} onChange={(e) => setDukApiKey(e.target.value)}
                 placeholder="Bearer token" className={inputCls} />
             </label>
-
-            {/* Auto-routing hint */}
             <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
               {t('virt.config.routingHint', locale)}
             </div>
@@ -221,13 +196,11 @@ function ConfigPanel({
               <input type="text" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
                 placeholder="https://example.com/upload" className={inputCls} />
             </label>
-
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.fieldName', locale)}</span>
               <input type="text" value={fieldName} onChange={(e) => setFieldName(e.target.value)}
                 placeholder="file" className={inputCls} />
             </label>
-
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.responsePath', locale)}</span>
               <input type="text" value={responseUrlPath} onChange={(e) => setResponseUrlPath(e.target.value)}
@@ -248,204 +221,49 @@ function ConfigPanel({
   );
 }
 
-type ScanScope = 'all' | 'folder';
-
-function WatchPanel({
-  locale,
-  watchFolders,
-  watchEvents,
-  onAddFolder,
-  onRemoveFolder,
-  onToggleFolder,
-  onClearEvents,
-  onSelectFolder,
-}: {
-  locale: 'en' | 'zh';
-  watchFolders: readonly WatchFolder[];
-  watchEvents: readonly { timestamp: number; filePath: string; size: number; action: 'pushed' | 'failed'; error?: string }[];
-  onAddFolder: (path: string, threshold: number) => void;
-  onRemoveFolder: (id: string) => void;
-  onToggleFolder: (id: string) => void;
-  onClearEvents: () => void;
-  onSelectFolder: () => Promise<string | null>;
-}) {
-  const [addThresholdIdx, setAddThresholdIdx] = useState(2);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
-
-  const handleAdd = async () => {
-    const folder = await onSelectFolder();
-    if (folder) {
-      onAddFolder(folder, THRESHOLD_STEPS[addThresholdIdx]);
-    }
-  };
-
-  const handleRemove = (id: string) => {
-    if (confirmingId !== id) {
-      setConfirmingId(id);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setConfirmingId(null), 3000);
-      return;
-    }
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setConfirmingId(null);
-    onRemoveFolder(id);
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Add watch folder toolbar */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleAdd}
-          className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 transition-opacity"
-        >
-          {t('virt.watch.add', locale)}
-        </button>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-mg-muted">{t('virt.watch.threshold', locale)}:</span>
-          <input
-            type="range"
-            min={0}
-            max={THRESHOLD_STEPS.length - 1}
-            value={addThresholdIdx}
-            onChange={(e) => setAddThresholdIdx(Number(e.target.value))}
-            className="w-24 accent-mg-primary"
-          />
-          <span className="text-xs text-mg-text font-mono w-16">{formatBytes(THRESHOLD_STEPS[addThresholdIdx])}</span>
-        </div>
-      </div>
-
-      {/* Watch folder list */}
-      {watchFolders.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-mg-muted text-sm">{t('virt.watch.empty', locale)}</div>
-          <div className="text-mg-muted/60 text-xs mt-1">{t('virt.watch.emptyHint', locale)}</div>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20">
-          {watchFolders.map((f) => (
-            <div key={f.id} className="flex items-center gap-3 px-4 py-3 hover:bg-mg-card/30 transition-colors">
-              {/* Toggle */}
-              <button
-                onClick={() => onToggleFolder(f.id)}
-                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                  f.enabled ? 'bg-mg-primary' : 'bg-mg-border'
-                }`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                  f.enabled ? 'left-5' : 'left-0.5'
-                }`} />
-              </button>
-
-              {/* Path */}
-              <div className="flex-1 min-w-0">
-                <div className={`text-sm truncate ${f.enabled ? 'text-mg-text' : 'text-mg-muted'}`} title={f.path}>
-                  {f.path}
-                </div>
-                <div className="text-xs text-mg-muted">
-                  {t('virt.watch.threshold', locale)}: {formatBytes(f.thresholdBytes)}
-                  {' — '}
-                  {t('virt.watch.lastScan', locale)}: {f.lastScanAt ? new Date(f.lastScanAt).toLocaleString() : t('virt.watch.never', locale)}
-                </div>
-              </div>
-
-              {/* Remove */}
-              <button
-                onClick={() => handleRemove(f.id)}
-                className={`text-xs px-2.5 py-1 rounded transition-colors flex-shrink-0 ${
-                  confirmingId === f.id
-                    ? 'bg-red-600 text-white hover:bg-red-500'
-                    : 'bg-mg-border/50 text-mg-muted hover:text-mg-text hover:bg-mg-border'
-                }`}
-              >
-                {confirmingId === f.id ? t('virt.watch.removeConfirm', locale) : t('virt.watch.remove', locale)}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Watch event log */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-mg-text">{t('virt.watch.events', locale)}</h3>
-          {watchEvents.length > 0 && (
-            <button
-              onClick={onClearEvents}
-              className="text-xs text-mg-muted hover:text-mg-text transition-colors"
-            >
-              {t('virt.watch.clearEvents', locale)}
-            </button>
-          )}
-        </div>
-        {watchEvents.length === 0 ? (
-          <div className="text-xs text-mg-muted py-4 text-center">{t('virt.watch.noEvents', locale)}</div>
-        ) : (
-          <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20 max-h-[300px] overflow-y-auto">
-            {[...watchEvents].reverse().map((e, i) => (
-              <div key={i} className="flex items-center gap-2 px-4 py-2 text-xs">
-                <span className={`px-1.5 py-0.5 rounded ${
-                  e.action === 'pushed' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                }`}>
-                  {e.action === 'pushed' ? t('virt.watch.pushed', locale) : t('virt.watch.failed', locale)}
-                </span>
-                <span className="text-mg-muted truncate flex-1" title={e.filePath}>{e.filePath.split('\\').pop()}</span>
-                <span className="text-mg-muted font-mono flex-shrink-0">{formatBytes(e.size)}</span>
-                <span className="text-mg-muted/60 flex-shrink-0">{new Date(e.timestamp).toLocaleTimeString()}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function DiskVirtualize() {
   const {
-    items, isScanning, isPushing, isPulling, scanDurationMs, progress,
-    pushResult, pullResult, status, config,
-    scan, scanFolder, selectFolder, push, pull, cancel, loadStatus, saveConfig,
-    watchFolders, watchEvents,
-    loadWatchFolders, loadWatchEvents, addWatchFolder, removeWatchFolder, toggleWatchFolder, clearWatchEvents, selectWatchFolder,
+    items, isScanning, isPushing, isPulling, progress,
+    pushResult, pullResult, config,
+    scanFolder, selectFolder, push, pull, cancel, saveConfig,
   } = useVirtualize();
   const locale = useAppStore((s) => s.locale);
 
-  const [mode, setMode] = useState<'push' | 'pull' | 'watch'>('push');
-  const [thresholdIdx, setThresholdIdx] = useState(2); // 50MB default
+  const [folderPath, setFolderPath] = useState<string | null>(null);
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [scanScope, setScanScope] = useState<ScanScope>('all');
-  const [folderPath, setFolderPath] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState<'virtualize' | 'restore' | null>(null);
+  const [showConfig, setShowConfig] = useState(false);
 
-  // Load status when switching to pull mode
-  useEffect(() => {
-    if (mode === 'pull') {
-      loadStatus();
-    }
-    if (mode === 'watch') {
-      loadWatchFolders();
-      loadWatchEvents();
-    }
-  }, [mode, loadStatus, loadWatchFolders, loadWatchEvents]);
+  const doScan = useCallback((folder: string) => {
+    setSelected(new Set());
+    scanFolder(folder);
+  }, [scanFolder]);
 
+  const handleSelectFolder = async () => {
+    const path = await selectFolder();
+    if (path) {
+      setFolderPath(path);
+      doScan(path);
+    }
+  };
+
+  // All items in one list (both original + virtualized)
   const filteredItems = useMemo(() => {
-    const byMode = items.filter((item) =>
-      mode === 'push' ? !item.isVirtualized : item.isVirtualized
-    );
-    if (mimeFilter === 'all') return byMode;
-    return byMode.filter((item) => getMimeCategory(item.mime) === mimeFilter);
-  }, [items, mode, mimeFilter]);
+    if (mimeFilter === 'all') return items;
+    return items.filter((item) => getMimeCategory(item.mime) === mimeFilter);
+  }, [items, mimeFilter]);
+
+  const selectedItems = useMemo(() => {
+    return filteredItems.filter((item) => selected.has(item.path));
+  }, [filteredItems, selected]);
+
+  const selectedOriginals = useMemo(() => selectedItems.filter((i) => !i.isVirtualized), [selectedItems]);
+  const selectedVirtualized = useMemo(() => selectedItems.filter((i) => i.isVirtualized), [selectedItems]);
 
   const selectedTotal = useMemo(() => {
-    return filteredItems.filter((item) => selected.has(item.path)).reduce((sum, item) => sum + item.size, 0);
-  }, [filteredItems, selected]);
+    return selectedItems.reduce((sum, item) => sum + item.size, 0);
+  }, [selectedItems]);
 
   const handleToggle = (path: string) => {
     setSelected((prev) => {
@@ -467,40 +285,24 @@ export function DiskVirtualize() {
     });
   };
 
-  const handleScan = async () => {
-    setSelected(new Set());
-    if (scanScope === 'folder' && folderPath) {
-      await scanFolder(folderPath, THRESHOLD_STEPS[thresholdIdx]);
-    } else {
-      await scan(THRESHOLD_STEPS[thresholdIdx]);
-    }
-  };
-
-  const handleBrowseFolder = async () => {
-    const path = await selectFolder();
-    if (path) {
-      setFolderPath(path);
-      setScanScope('folder');
-    }
-  };
-
-  const handlePush = async () => {
-    setShowConfirm(false);
-    const paths = filteredItems.filter((item) => selected.has(item.path)).map((item) => item.path);
+  const handleVirtualize = async (paths: string[]) => {
+    setShowConfirm(null);
     await push(paths);
     setSelected(new Set());
+    // Re-scan to refresh list
+    if (folderPath) doScan(folderPath);
   };
 
-  const handlePull = async () => {
-    setShowConfirm(false);
-    const paths = filteredItems.filter((item) => selected.has(item.path)).map((item) => item.path);
+  const handleRestore = async (paths: string[]) => {
+    setShowConfirm(null);
     await pull(paths);
     setSelected(new Set());
+    if (folderPath) doScan(folderPath);
   };
 
   const isBusy = isScanning || isPushing || isPulling;
 
-  // Show config panel if no backend configured
+  // No config yet — show setup
   if (!config) {
     return (
       <div className="space-y-4">
@@ -515,126 +317,121 @@ export function DiskVirtualize() {
 
   return (
     <div className="space-y-4">
-      {/* Mode toggle */}
-      <div className="flex items-center gap-2">
-        {(['push', 'pull', 'watch'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => { setMode(m); setSelected(new Set()); }}
-            className={`px-4 py-1.5 text-sm rounded transition-colors ${
-              mode === m
-                ? 'bg-mg-primary text-white'
-                : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-            }`}
-          >
-            {m === 'push' ? t('virt.mode.push', locale) :
-             m === 'pull' ? t('virt.mode.pull', locale) :
-             t('virt.watch.title', locale)}
-          </button>
-        ))}
-      </div>
-
-      {/* Watch mode */}
-      {mode === 'watch' && (
-        <WatchPanel
-          locale={locale}
-          watchFolders={watchFolders}
-          watchEvents={watchEvents}
-          onAddFolder={addWatchFolder}
-          onRemoveFolder={removeWatchFolder}
-          onToggleFolder={toggleWatchFolder}
-          onClearEvents={clearWatchEvents}
-          onSelectFolder={selectWatchFolder}
-        />
-      )}
-
-      {/* Push mode: scan toolbar */}
-      {mode === 'push' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Scope toggle: All Drives vs Folder */}
-            <div className="flex gap-1">
-              <button
-                onClick={() => { setScanScope('all'); setFolderPath(null); }}
-                className={`px-3 py-1 text-xs rounded transition-colors ${
-                  scanScope === 'all'
-                    ? 'bg-mg-primary/20 text-mg-primary'
-                    : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-                }`}
-              >
-                {t('virt.allDrives', locale)}
-              </button>
-              <button
-                onClick={handleBrowseFolder}
-                className={`px-3 py-1 text-xs rounded transition-colors ${
-                  scanScope === 'folder'
-                    ? 'bg-mg-primary/20 text-mg-primary'
-                    : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-                }`}
-              >
-                {t('virt.browseFolder', locale)}
-              </button>
-            </div>
-
-            {scanScope === 'folder' && folderPath && (
-              <span className="text-xs text-mg-muted truncate max-w-[200px]" title={folderPath}>
+      {/* Toolbar: folder picker + threshold + settings */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {folderPath ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-mg-card/40 border border-mg-border/30 min-w-0">
+              <svg className="w-4 h-4 text-mg-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span className="text-sm text-mg-text truncate max-w-[300px]" title={folderPath}>
                 {folderPath}
               </span>
-            )}
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-mg-muted">{t('virt.threshold', locale)}:</span>
-              <input
-                type="range"
-                min={0}
-                max={THRESHOLD_STEPS.length - 1}
-                value={thresholdIdx}
-                onChange={(e) => setThresholdIdx(Number(e.target.value))}
-                className="w-32 accent-mg-primary"
-              />
-              <span className="text-xs text-mg-text font-mono w-16">{formatBytes(THRESHOLD_STEPS[thresholdIdx])}</span>
             </div>
+            <button
+              onClick={handleSelectFolder}
+              disabled={isBusy}
+              className="px-3 py-1.5 text-xs rounded bg-mg-border/40 text-mg-muted hover:text-mg-text hover:bg-mg-border/60 disabled:opacity-50 transition-colors"
+            >
+              {t('virt.changeFolder', locale)}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleSelectFolder}
+            disabled={isBusy}
+            className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {t('virt.selectFolder', locale)}
+          </button>
+        )}
 
-            {isScanning ? (
-              <button
-                onClick={cancel}
-                className="px-4 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-500 transition-colors"
-              >
-                {t('virt.cancel', locale)}
-              </button>
-            ) : (
-              <button
-                onClick={handleScan}
-                disabled={isBusy}
-                className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-              >
-                {t('virt.scan', locale)}
-              </button>
-            )}
+        {isScanning && (
+          <button
+            onClick={cancel}
+            className="px-3 py-1.5 text-xs rounded bg-red-600 text-white hover:bg-red-500 transition-colors"
+          >
+            {t('virt.cancel', locale)}
+          </button>
+        )}
 
-            {isScanning && progress && (
-              <div className="flex items-center gap-2 text-sm text-mg-muted">
-                <div className="w-4 h-4 border-2 border-mg-primary border-t-transparent rounded-full animate-spin" />
-                <span>{progress.current} {t('virt.found', locale)} ({formatBytes(progress.bytesProcessed)})</span>
-              </div>
-            )}
+        <div className="flex-1" />
 
-            {!isScanning && items.length > 0 && (
-              <span className="text-xs text-mg-muted">
-                {filteredItems.length} items ({formatBytes(filteredItems.reduce((s, i) => s + i.size, 0))})
-                {scanDurationMs > 0 && ` in ${formatDuration(scanDurationMs)}`}
-              </span>
-            )}
-          </div>
+        {/* Settings gear */}
+        <button
+          onClick={() => setShowConfig((v) => !v)}
+          className={`p-1.5 rounded transition-colors ${
+            showConfig ? 'bg-mg-primary/20 text-mg-primary' : 'text-mg-muted hover:text-mg-text'
+          }`}
+          title={t('virt.config.title', locale)}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
 
-          {/* Mime filter buttons */}
-          {items.length > 0 && (
+      {/* Config panel (collapsible) */}
+      {showConfig && (
+        <ConfigPanel config={config} onSave={saveConfig} locale={locale} />
+      )}
+
+      {/* Scanning indicator */}
+      {isScanning && progress && (
+        <div className="flex items-center gap-2 text-sm text-mg-muted">
+          <div className="w-4 h-4 border-2 border-mg-primary border-t-transparent rounded-full animate-spin" />
+          <span>{t('virt.loading', locale)} {progress.current} {t('virt.found', locale)} ({formatBytes(progress.bytesProcessed)})</span>
+        </div>
+      )}
+
+      {/* Empty state: no folder selected */}
+      {!folderPath && !isScanning && (
+        <div className="text-center py-20">
+          <svg className="w-12 h-12 mx-auto text-mg-muted/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <div className="text-mg-muted text-sm">{t('virt.empty', locale)}</div>
+          <div className="text-mg-muted/60 text-xs mt-1">{t('virt.emptyHint', locale)}</div>
+        </div>
+      )}
+
+      {/* Empty state: folder selected but no files */}
+      {folderPath && !isScanning && items.length === 0 && (
+        <div className="text-center py-16">
+          <div className="text-mg-muted text-sm">{t('virt.noFiles', locale)}</div>
+          <div className="text-mg-muted/60 text-xs mt-1">{t('virt.noFilesHint', locale)}</div>
+        </div>
+      )}
+
+      {/* File list */}
+      {filteredItems.length > 0 && (
+        <>
+          {/* Filter bar + select all */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleSelectAll}
+              className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.path))
+                  ? 'bg-mg-primary/20 text-mg-primary'
+                  : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+              }`}
+            >
+              {t('virt.selectAll', locale)}
+            </button>
+            <span className="text-xs text-mg-muted">
+              {filteredItems.length} {t('virt.files', locale)}
+            </span>
+
+            <div className="flex-1" />
+
             <div className="flex gap-1">
               {(['all', 'video', 'image', 'archive', 'document', 'other'] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => { setMimeFilter(f); setSelected(new Set()); }}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                  className={`px-2.5 py-1 text-xs rounded transition-colors ${
                     mimeFilter === f
                       ? 'bg-mg-primary/20 text-mg-primary'
                       : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
@@ -644,121 +441,58 @@ export function DiskVirtualize() {
                 </button>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Pull mode: status cards */}
-      {mode === 'pull' && status && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-mg-border/40 p-4">
-            <div className="text-2xl font-bold text-mg-text">{status.virtualizedFiles}</div>
-            <div className="text-xs text-mg-muted">{t('virt.status.virtualized', locale)}</div>
-          </div>
-          <div className="rounded-lg border border-mg-border/40 p-4">
-            <div className="text-2xl font-bold text-green-400">{formatBytes(status.savedBytes)}</div>
-            <div className="text-xs text-mg-muted">{t('virt.status.saved', locale)}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Pull mode: scan for .refile files */}
-      {mode === 'pull' && (
-        <div className="flex items-center gap-3">
-          {isScanning ? (
-            <button
-              onClick={cancel}
-              className="px-4 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-500 transition-colors"
-            >
-              {t('virt.cancel', locale)}
-            </button>
-          ) : (
-            <button
-              onClick={handleScan}
-              disabled={isBusy}
-              className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {t('virt.scanPointers', locale)}
-            </button>
-          )}
-
-          {isScanning && progress && (
-            <div className="flex items-center gap-2 text-sm text-mg-muted">
-              <div className="w-4 h-4 border-2 border-mg-primary border-t-transparent rounded-full animate-spin" />
-              <span>{t('virt.scanning', locale)}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {mode !== 'watch' && !isScanning && filteredItems.length === 0 && items.length === 0 && (
-        <div className="text-center py-16">
-          <div className="text-mg-muted text-sm">
-            {mode === 'push' ? t('virt.empty.push', locale) : t('virt.empty.pull', locale)}
-          </div>
-          <div className="text-mg-muted/60 text-xs mt-1">
-            {mode === 'push' ? t('virt.empty.pushHint', locale) : t('virt.empty.pullHint', locale)}
-          </div>
-        </div>
-      )}
-
-      {/* File list */}
-      {mode !== 'watch' && filteredItems.length > 0 && (
-        <div className="rounded-lg border border-mg-border/40 overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-mg-card/40">
-            <button
-              onClick={handleSelectAll}
-              className={`text-xs px-2 py-0.5 rounded transition-colors ${
-                filteredItems.every((item) => selected.has(item.path))
-                  ? 'bg-mg-primary/20 text-mg-primary'
-                  : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-              }`}
-            >
-              {t('virt.selectAll', locale)}
-            </button>
-            <span className="text-xs text-mg-muted flex-1">{filteredItems.length} files</span>
           </div>
 
           {/* Items */}
-          <div className="divide-y divide-mg-border/20 max-h-[400px] overflow-y-auto">
+          <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20 max-h-[420px] overflow-y-auto">
             {filteredItems.map((item) => (
               <FileRow
                 key={item.path}
                 item={item}
+                locale={locale}
                 isSelected={selected.has(item.path)}
+                isBusy={isBusy}
                 onToggle={() => handleToggle(item.path)}
+                onAction={() => {
+                  if (item.isVirtualized) {
+                    handleRestore([item.path]);
+                  } else {
+                    handleVirtualize([item.path]);
+                  }
+                }}
               />
             ))}
           </div>
-        </div>
+        </>
       )}
 
-      {/* Footer: selection + action */}
-      {mode !== 'watch' && filteredItems.length > 0 && (
-        <div className="flex items-center justify-between border-t border-mg-border/40 pt-4">
+      {/* Footer: selection + batch actions */}
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between border-t border-mg-border/40 pt-3">
           <span className="text-sm text-mg-muted">
             {t('virt.selected', locale)}: {selected.size} ({formatBytes(selectedTotal)})
           </span>
 
-          {mode === 'push' ? (
-            <button
-              onClick={() => setShowConfirm(true)}
-              disabled={selected.size === 0 || isBusy}
-              className="px-4 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
-            >
-              {isPushing ? t('virt.pushing', locale) : t('virt.pushToCloud', locale)}
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowConfirm(true)}
-              disabled={selected.size === 0 || isBusy}
-              className="px-4 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
-            >
-              {isPulling ? t('virt.pulling', locale) : t('virt.restore', locale)}
-            </button>
-          )}
+          <div className="flex gap-2">
+            {selectedOriginals.length > 0 && (
+              <button
+                onClick={() => setShowConfirm('virtualize')}
+                disabled={isBusy}
+                className="px-4 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
+              >
+                {isPushing ? t('virt.virtualizing', locale) : t('virt.batchVirtualize', locale)} ({selectedOriginals.length})
+              </button>
+            )}
+            {selectedVirtualized.length > 0 && (
+              <button
+                onClick={() => setShowConfirm('restore')}
+                disabled={isBusy}
+                className="px-4 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
+              >
+                {isPulling ? t('virt.restoring', locale) : t('virt.batchRestore', locale)} ({selectedVirtualized.length})
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -785,43 +519,53 @@ export function DiskVirtualize() {
 
       {/* Confirmation dialog */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowConfirm(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowConfirm(null)}>
           <div className="bg-mg-surface border border-mg-border rounded-lg p-6 max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-mg-text mb-2">
-              {mode === 'push' ? t('virt.confirm.push', locale) : t('virt.confirm.pull', locale)}
+              {showConfirm === 'virtualize' ? t('virt.confirm.virtualize', locale) : t('virt.confirm.restore', locale)}
             </h3>
             <p className="text-sm text-mg-muted mb-4">
-              {mode === 'push'
-                ? t('virt.confirm.pushDesc', locale).replace('{count}', String(selected.size)).replace('{size}', formatBytes(selectedTotal))
-                : t('virt.confirm.pullDesc', locale).replace('{count}', String(selected.size)).replace('{size}', formatBytes(selectedTotal))
+              {showConfirm === 'virtualize'
+                ? t('virt.confirm.virtualizeDesc', locale)
+                    .replace('{count}', String(selectedOriginals.length))
+                    .replace('{size}', formatBytes(selectedOriginals.reduce((s, i) => s + i.size, 0)))
+                : t('virt.confirm.restoreDesc', locale)
+                    .replace('{count}', String(selectedVirtualized.length))
+                    .replace('{size}', formatBytes(selectedVirtualized.reduce((s, i) => s + i.size, 0)))
               }
             </p>
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={() => setShowConfirm(null)}
                 className="px-4 py-1.5 text-sm rounded bg-mg-border/50 text-mg-muted hover:text-mg-text transition-colors"
               >
                 {t('virt.cancel', locale)}
               </button>
               <button
-                onClick={mode === 'push' ? handlePush : handlePull}
+                onClick={() => {
+                  if (showConfirm === 'virtualize') {
+                    handleVirtualize(selectedOriginals.map((i) => i.path));
+                  } else {
+                    handleRestore(selectedVirtualized.map((i) => i.path));
+                  }
+                }}
                 className={`px-4 py-1.5 text-sm rounded text-white transition-colors ${
-                  mode === 'push' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'
+                  showConfirm === 'virtualize' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'
                 }`}
               >
-                {mode === 'push' ? t('virt.pushToCloud', locale) : t('virt.restore', locale)}
+                {showConfirm === 'virtualize' ? t('virt.virtualize', locale) : t('virt.restore', locale)}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Push result */}
+      {/* Results */}
       {pushResult && (
         <div className="rounded-lg border border-mg-border/40 p-4 space-y-2">
           {pushResult.pushed > 0 && (
             <div className="text-sm text-green-400">
-              {t('virt.result.pushed', locale)}: {pushResult.pushed} files ({formatBytes(pushResult.freedBytes)})
+              {t('virt.result.virtualized', locale)}: {pushResult.pushed} {t('virt.files', locale)} ({formatBytes(pushResult.freedBytes)})
             </div>
           )}
           {pushResult.errors.length > 0 && (
@@ -835,12 +579,11 @@ export function DiskVirtualize() {
         </div>
       )}
 
-      {/* Pull result */}
       {pullResult && (
         <div className="rounded-lg border border-mg-border/40 p-4 space-y-2">
           {pullResult.pulled > 0 && (
             <div className="text-sm text-green-400">
-              {t('virt.result.pulled', locale)}: {pullResult.pulled} files ({formatBytes(pullResult.restoredBytes)})
+              {t('virt.result.restored', locale)}: {pullResult.pulled} {t('virt.files', locale)} ({formatBytes(pullResult.restoredBytes)})
             </div>
           )}
           {pullResult.errors.length > 0 && (
@@ -853,28 +596,32 @@ export function DiskVirtualize() {
           )}
         </div>
       )}
-
-      {/* Collapsible config panel */}
-      <details className="mt-4">
-        <summary className="text-xs text-mg-muted cursor-pointer hover:text-mg-text">
-          {t('virt.config.title', locale)}
-        </summary>
-        <div className="mt-2">
-          <ConfigPanel config={config} onSave={saveConfig} locale={locale} />
-        </div>
-      </details>
     </div>
   );
 }
 
-function FileRow({ item, isSelected, onToggle }: { item: VirtScanItem; isSelected: boolean; onToggle: () => void }) {
+function FileRow({
+  item,
+  locale,
+  isSelected,
+  isBusy,
+  onToggle,
+  onAction,
+}: {
+  item: VirtScanItem;
+  locale: 'en' | 'zh';
+  isSelected: boolean;
+  isBusy: boolean;
+  onToggle: () => void;
+  onAction: () => void;
+}) {
   return (
-    <label className="flex items-center gap-3 px-4 py-2 hover:bg-mg-card/30 cursor-pointer transition-colors">
+    <div className="flex items-center gap-3 px-4 py-2 hover:bg-mg-card/30 transition-colors">
       <input
         type="checkbox"
         checked={isSelected}
         onChange={onToggle}
-        className="w-4 h-4 rounded border-mg-border text-mg-primary focus:ring-mg-primary/30 bg-mg-bg"
+        className="w-4 h-4 rounded border-mg-border text-mg-primary focus:ring-mg-primary/30 bg-mg-bg flex-shrink-0"
       />
       <div className="flex-1 min-w-0">
         <div className="text-sm text-mg-text truncate">{item.path.split('\\').pop()}</div>
@@ -883,7 +630,25 @@ function FileRow({ item, isSelected, onToggle }: { item: VirtScanItem; isSelecte
       <span className="text-[10px] px-1.5 py-0.5 rounded bg-mg-border/30 text-mg-muted flex-shrink-0">
         {item.mime.split('/')[1]?.slice(0, 8) ?? item.mime}
       </span>
-      <span className="text-sm text-mg-text font-mono flex-shrink-0">{formatBytes(item.size)}</span>
-    </label>
+      <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+        item.isVirtualized
+          ? 'bg-green-500/15 text-green-400'
+          : 'bg-mg-border/30 text-mg-muted'
+      }`}>
+        {item.isVirtualized ? t('virt.status.virtualized', locale) : t('virt.status.original', locale)}
+      </span>
+      <span className="text-sm text-mg-text font-mono flex-shrink-0 w-20 text-right">{formatBytes(item.size)}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); onAction(); }}
+        disabled={isBusy}
+        className={`text-xs px-2.5 py-1 rounded text-white transition-colors disabled:opacity-50 flex-shrink-0 ${
+          item.isVirtualized
+            ? 'bg-green-600 hover:bg-green-500'
+            : 'bg-blue-600 hover:bg-blue-500'
+        }`}
+      >
+        {item.isVirtualized ? t('virt.restore', locale) : t('virt.virtualize', locale)}
+      </button>
+    </div>
   );
 }

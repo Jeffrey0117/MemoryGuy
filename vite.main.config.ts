@@ -14,6 +14,7 @@ export default defineConfig({
       external: [
         'electron',
         'systeminformation',
+        '@aws-sdk/client-s3',
         ...builtinModules,
         ...builtinModules.map((m) => `node:${m}`),
       ],

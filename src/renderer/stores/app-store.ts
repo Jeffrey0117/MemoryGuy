@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Locale } from '../i18n';
 
 export type Theme = 'dark' | 'light';
@@ -13,11 +14,23 @@ interface AppStore {
   toggleLocale: () => void;
 }
 
-export const useAppStore = create<AppStore>()((set) => ({
-  activeTab: 'dashboard',
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  theme: 'dark',
-  toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
-  locale: 'en',
-  toggleLocale: () => set((s) => ({ locale: s.locale === 'en' ? 'zh' : 'en' })),
-}));
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set) => ({
+      activeTab: 'dashboard' as Tab,
+      setActiveTab: (tab: Tab) => set({ activeTab: tab }),
+      theme: 'light' as Theme,
+      toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      locale: 'zh' as Locale,
+      toggleLocale: () => set((s) => ({ locale: s.locale === 'en' ? 'zh' : 'en' })),
+    }),
+    {
+      name: 'memoryguy-prefs',
+      partialize: (state) => ({
+        activeTab: state.activeTab,
+        theme: state.theme,
+        locale: state.locale,
+      }),
+    },
+  ),
+);

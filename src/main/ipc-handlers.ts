@@ -327,21 +327,15 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
   });
 
   // --- Disk virtualization ---
-  ipcMain.handle(IPC.VIRT_SCAN, async (_event, thresholdBytes: unknown) => {
-    if (typeof thresholdBytes !== 'number' || thresholdBytes < 1_048_576 || thresholdBytes > 10_737_418_240) {
-      return { items: [], totalSize: 0, scanDurationMs: 0 };
-    }
-    return diskVirtualizer.scan({ thresholdBytes });
+  ipcMain.handle(IPC.VIRT_SCAN, async () => {
+    return diskVirtualizer.scan({});
   });
 
-  ipcMain.handle(IPC.VIRT_SCAN_FOLDER, async (_event, folderPath: unknown, thresholdBytes: unknown) => {
+  ipcMain.handle(IPC.VIRT_SCAN_FOLDER, async (_event, folderPath: unknown) => {
     if (typeof folderPath !== 'string' || folderPath.length === 0 || folderPath.length > 2048) {
       return { items: [], totalSize: 0, scanDurationMs: 0 };
     }
-    if (typeof thresholdBytes !== 'number' || thresholdBytes < 1_048_576 || thresholdBytes > 10_737_418_240) {
-      return { items: [], totalSize: 0, scanDurationMs: 0 };
-    }
-    return diskVirtualizer.scanFolder(folderPath, thresholdBytes);
+    return diskVirtualizer.scanFolder(folderPath);
   });
 
   ipcMain.handle(IPC.VIRT_SELECT_FOLDER, async () => {

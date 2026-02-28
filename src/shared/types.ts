@@ -348,8 +348,8 @@ export interface MemoryGuyAPI {
   onDiskScanProgress: (callback: (progress: DiskScanProgress) => void) => () => void
 
   // Disk virtualization
-  virtScan: (thresholdBytes: number) => Promise<VirtScanResult>
-  virtScanFolder: (folderPath: string, thresholdBytes: number) => Promise<VirtScanResult>
+  virtScan: () => Promise<VirtScanResult>
+  virtScanFolder: (folderPath: string) => Promise<VirtScanResult>
   virtSelectFolder: () => Promise<string | null>
   virtPush: (filePaths: string[]) => Promise<VirtPushResult>
   virtPull: (refilePaths: string[]) => Promise<VirtPullResult>

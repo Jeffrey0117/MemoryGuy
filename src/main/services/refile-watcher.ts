@@ -140,7 +140,7 @@ export class RefileWatcher extends EventEmitter {
         if (!fs.existsSync(folder.path)) continue
 
         try {
-          const result = await this.virtualizer.scanFolder(folder.path, folder.thresholdBytes)
+          const result = await this.virtualizer.scanFolder(folder.path)
           const pushable = result.items.filter((i) => !i.isVirtualized)
 
           if (pushable.length === 0) {

@@ -89,7 +89,7 @@ export function App() {
           {activeTab === 'startup' && <StartupPanel />}
           {activeTab === 'envvars' && <EnvVarsPanel />}
           {activeTab === 'diskcleanup' && <DiskCleanup />}
-          {activeTab === 'virtualize' && <DiskVirtualize />}
+          <div className={activeTab === 'virtualize' ? '' : 'hidden'}><DiskVirtualize /></div>
         </ErrorBoundary>
       </main>
     </div>

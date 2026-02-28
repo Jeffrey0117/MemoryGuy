@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { t } from '../i18n'
 import type { Locale } from '../i18n'
 import type { VirtRegistryEntry, VirtRegistryStats, VirtRegistryScanResult } from '@shared/types'
@@ -67,6 +67,16 @@ export function VirtOverview({
     () => selectedEntries.reduce((sum, e) => sum + e.size, 0),
     [selectedEntries]
   )
+
+  // Clear stale selections when entries change (e.g. after pull removes them)
+  useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev
+      const validPaths = new Set(entries.map((e) => e.pointerPath))
+      const next = new Set([...prev].filter((p) => validPaths.has(p)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [entries])
 
   const handleToggle = useCallback((pointerPath: string) => {
     setSelected((prev) => {
@@ -174,7 +184,7 @@ export function VirtOverview({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleSelectAll}
-            disabled={filteredEntries.length === 0}
+            disabled={isBusy || filteredEntries.length === 0}
             className={`text-xs px-2.5 py-1 rounded transition-colors ${
               filteredEntries.length > 0 && filteredEntries.every((e) => selected.has(e.pointerPath))
                 ? 'bg-mg-primary/20 text-mg-primary'
@@ -221,7 +231,8 @@ export function VirtOverview({
                 type="checkbox"
                 checked={selected.has(entry.pointerPath)}
                 onChange={() => handleToggle(entry.pointerPath)}
-                className="w-4 h-4 rounded border-mg-border text-mg-primary focus:ring-mg-primary/30 bg-mg-bg flex-shrink-0"
+                disabled={isBusy}
+                className="w-4 h-4 rounded border-mg-border text-mg-primary focus:ring-mg-primary/30 bg-mg-bg flex-shrink-0 disabled:opacity-50"
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm text-mg-text truncate">{entry.name}</div>

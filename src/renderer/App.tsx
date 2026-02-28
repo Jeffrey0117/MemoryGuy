@@ -81,14 +81,14 @@ export function App() {
       <main className="flex-1 overflow-y-auto bg-mg-surface border-t border-mg-border p-4">
         <LeakAlert />
         <ErrorBoundary>
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'processes' && <ProcessList />}
-          {activeTab === 'actions' && <QuickActions />}
-          {activeTab === 'guardian' && <GuardianPanel />}
-          {activeTab === 'devservers' && <DevServers />}
-          {activeTab === 'startup' && <StartupPanel />}
-          {activeTab === 'envvars' && <EnvVarsPanel />}
-          {activeTab === 'diskcleanup' && <DiskCleanup />}
+          <div className={activeTab === 'dashboard' ? '' : 'hidden'}><Dashboard /></div>
+          <div className={activeTab === 'processes' ? '' : 'hidden'}><ProcessList /></div>
+          <div className={activeTab === 'actions' ? '' : 'hidden'}><QuickActions /></div>
+          <div className={activeTab === 'guardian' ? '' : 'hidden'}><GuardianPanel /></div>
+          <div className={activeTab === 'devservers' ? '' : 'hidden'}><DevServers /></div>
+          <div className={activeTab === 'startup' ? '' : 'hidden'}><StartupPanel /></div>
+          <div className={activeTab === 'envvars' ? '' : 'hidden'}><EnvVarsPanel /></div>
+          <div className={activeTab === 'diskcleanup' ? '' : 'hidden'}><DiskCleanup /></div>
           <div className={activeTab === 'virtualize' ? '' : 'hidden'}><DiskVirtualize /></div>
         </ErrorBoundary>
       </main>

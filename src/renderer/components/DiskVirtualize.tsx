@@ -427,10 +427,8 @@ export function DiskVirtualize() {
           stats={registryStats}
           isLoading={isRegistryLoading}
           locale={locale}
-          onScanFolders={scanRegistryFolders}
           onRebuild={rebuildRegistry}
           onPull={(paths) => { pull(paths).then(() => loadRegistry()) }}
-          onSelectFolder={selectFolder}
           isPulling={isPulling}
         />
       </div>

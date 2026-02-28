@@ -207,6 +207,17 @@ export class DiskVirtualizer extends EventEmitter {
                 mtime: stat.mtimeMs,
                 isVirtualized: true,
               })
+              // Passively populate registry while browsing
+              this.registry?.addEntries([{
+                pointerPath: fullPath,
+                originalPath: getOriginalPath(fullPath),
+                name: pointer.name,
+                hash: pointer.hash,
+                size: pointer.size,
+                mime: pointer.mime,
+                backend: pointer.backend ?? 'unknown',
+                createdAt: pointer.createdAt,
+              } satisfies VirtRegistryEntry])
             }
           } catch {
             // Skip unreadable pointer files

@@ -34,10 +34,8 @@ interface VirtOverviewProps {
   readonly stats: VirtRegistryStats | null
   readonly isLoading: boolean
   readonly locale: Locale
-  readonly onScanFolders: (paths: string[]) => Promise<VirtRegistryScanResult>
   readonly onRebuild: () => Promise<VirtRegistryScanResult>
   readonly onPull: (refilePaths: string[]) => void
-  readonly onSelectFolder: () => Promise<string | null>
   readonly isPulling: boolean
 }
 
@@ -46,10 +44,8 @@ export function VirtOverview({
   stats,
   isLoading,
   locale,
-  onScanFolders,
   onRebuild,
   onPull,
-  onSelectFolder,
   isPulling,
 }: VirtOverviewProps) {
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all')
@@ -91,18 +87,6 @@ export function VirtOverview({
       return new Set(filteredEntries.map((e) => e.pointerPath))
     })
   }, [filteredEntries])
-
-  const handleScanFolders = useCallback(async () => {
-    const folderPath = await onSelectFolder()
-    if (!folderPath) return
-    const result = await onScanFolders([folderPath])
-    setScanMessage(
-      t('virt.overview.scanResult', locale)
-        .replace('{added}', String(result.added))
-        .replace('{migrated}', String(result.migrated))
-    )
-    setTimeout(() => setScanMessage(null), 5000)
-  }, [onSelectFolder, onScanFolders, locale])
 
   const handleRebuild = useCallback(async () => {
     setIsRebuilding(true)
@@ -155,13 +139,6 @@ export function VirtOverview({
 
       {/* Action bar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={handleScanFolders}
-          disabled={isBusy}
-          className="px-3 py-1.5 text-xs rounded bg-mg-border/30 text-mg-muted hover:text-mg-text hover:bg-mg-border/50 disabled:opacity-50 transition-colors"
-        >
-          {t('virt.overview.scanFolders', locale)}
-        </button>
         <button
           onClick={handleRebuild}
           disabled={isBusy}

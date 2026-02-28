@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import path from 'node:path'
 import { z } from 'zod'
 
 const EXTENSIONS = ['.revid', '.remusic', '.repic', '.refile'] as const
@@ -144,7 +145,12 @@ export function getOriginalPath(refilePath: string): string {
 
 export function getRefilePath(originalPath: string, mime?: string): string {
   const ext = mime ? getExtensionForMime(mime) : '.refile'
-  return `${originalPath}${ext}`
+  const parsed = path.parse(originalPath)
+  return path.join(parsed.dir, `${parsed.name}${ext}`)
+}
+
+export function getOriginalPathFromPointer(refilePath: string, pointerName: string): string {
+  return path.join(path.dirname(refilePath), pointerName)
 }
 
 export { EXTENSIONS }

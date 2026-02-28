@@ -6,7 +6,7 @@ import { lookup } from 'mime-types'
 import { z } from 'zod'
 import type { RefileConfig } from './refile/config-types'
 import { createBackend } from './refile/backends/registry'
-import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePath, isRefilePath, getOriginalPath, EXTENSIONS } from './refile/refile-format'
+import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePath, isRefilePath, getOriginalPath, getOriginalPathFromPointer, EXTENSIONS } from './refile/refile-format'
 import { hashFile, verifyHash } from './refile/hasher'
 import { getFileMeta, restoreFileMeta } from './refile/file-meta'
 import { runPs, psEscape } from './powershell'
@@ -210,7 +210,7 @@ export class DiskVirtualizer extends EventEmitter {
               // Passively populate registry while browsing
               this.registry?.addEntries([{
                 pointerPath: fullPath,
-                originalPath: getOriginalPath(fullPath),
+                originalPath: getOriginalPathFromPointer(fullPath, pointer.name),
                 name: pointer.name,
                 hash: pointer.hash,
                 size: pointer.size,
@@ -462,8 +462,24 @@ export class DiskVirtualizer extends EventEmitter {
           meta: { mode: meta.mode, mtime: meta.mtime, atime: meta.atime },
         })
 
-        // Write pointer file (extension based on MIME type)
-        const refilePath = getRefilePath(filePath, mimeType)
+        // Write pointer file (extension based on MIME type, with collision suffix)
+        let refilePath = getRefilePath(filePath, mimeType)
+        if (fs.existsSync(refilePath)) {
+          const parsed = path.parse(refilePath)
+          let found = false
+          for (let i = 1; i <= 999; i++) {
+            const candidate = path.join(parsed.dir, `${parsed.name} (${i})${parsed.ext}`)
+            if (!fs.existsSync(candidate)) {
+              refilePath = candidate
+              found = true
+              break
+            }
+          }
+          if (!found) {
+            errors.push(`${filePath}: naming collision, skipped`)
+            continue
+          }
+        }
         writeRefilePointer(refilePath, pointer)
 
         // Verify pointer was written correctly
@@ -538,15 +554,15 @@ export class DiskVirtualizer extends EventEmitter {
           continue
         }
 
-        const originalPath = getOriginalPath(refilePath)
-        if (isSystemPath(originalPath)) {
-          errors.push(`${refilePath}: restoring to system path, skipped`)
-          continue
-        }
-
         const pointer = readRefilePointer(refilePath)
         if (!pointer) {
           errors.push(`${refilePath}: invalid pointer`)
+          continue
+        }
+
+        const originalPath = getOriginalPathFromPointer(refilePath, pointer.name)
+        if (isSystemPath(originalPath)) {
+          errors.push(`${refilePath}: restoring to system path, skipped`)
           continue
         }
 

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import type { VirtRegistryEntry, VirtRegistryStats, VirtRegistryScanResult } from '@shared/types'
-import { readRefilePointer, isRefilePath, getOriginalPath, EXTENSIONS } from './refile-format'
+import { readRefilePointer, isRefilePath, getOriginalPathFromPointer } from './refile-format'
 
 const REGISTRY_FILE = 'refile-registry.json'
 
@@ -153,7 +153,7 @@ export class RefileRegistry {
             key,
             entry: {
               pointerPath: fullPath,
-              originalPath: getOriginalPath(fullPath),
+              originalPath: getOriginalPathFromPointer(fullPath, pointer.name),
               name: pointer.name,
               hash: pointer.hash,
               size: pointer.size,

@@ -59,6 +59,7 @@ export const IPC = {
   ON_DISK_SCAN_PROGRESS: 'on-disk-scan-progress',
 
   // Disk virtualization
+  VIRT_GET_USER_FOLDERS: 'virt-get-user-folders',
   VIRT_SCAN: 'virt-scan',
   VIRT_SCAN_FOLDER: 'virt-scan-folder',
   VIRT_SELECT_FOLDER: 'virt-select-folder',

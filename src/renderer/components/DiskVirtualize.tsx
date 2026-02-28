@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useVirtualize } from '../hooks/useVirtualize';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
@@ -221,42 +221,111 @@ function ConfigPanel({
   );
 }
 
+const FOLDER_NAME_KEYS: Record<string, Parameters<typeof t>[0]> = {
+  desktop: 'virt.folder.desktop',
+  documents: 'virt.folder.documents',
+  downloads: 'virt.folder.downloads',
+  pictures: 'virt.folder.pictures',
+  videos: 'virt.folder.videos',
+  music: 'virt.folder.music',
+};
+
+function getParentPath(folderPath: string): string | null {
+  const sep = folderPath.includes('/') ? '/' : '\\';
+  const parts = folderPath.replace(/[\\/]+$/, '').split(sep);
+  if (parts.length <= 2) return null; // e.g. "C:\" has no parent
+  return parts.slice(0, -1).join(sep);
+}
+
 export function DiskVirtualize() {
   const {
     items, isScanning, isPushing, isPulling, progress,
-    pushResult, pullResult, config,
+    pushResult, pullResult, config, status, loadStatus,
     scanFolder, selectFolder, push, pull, cancel, saveConfig,
+    userFolders, loadUserFolders,
   } = useVirtualize();
   const locale = useAppStore((s) => s.locale);
+  const activeTab = useAppStore((s) => s.activeTab);
+
+  // Load stats + user folders on mount
+  useEffect(() => {
+    if (activeTab === 'virtualize') {
+      loadStatus();
+      loadUserFolders();
+    }
+  }, [activeTab, loadStatus, loadUserFolders]);
 
   const [folderPath, setFolderPath] = useState<string | null>(null);
+  const [activeQuickFolder, setActiveQuickFolder] = useState<string | null>(null);
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [showConfirm, setShowConfirm] = useState<'virtualize' | 'restore' | null>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [autoLoaded, setAutoLoaded] = useState(false);
 
   const doScan = useCallback((folder: string) => {
     setSelected(new Set());
     scanFolder(folder);
   }, [scanFolder]);
 
+  // Auto-load Desktop on first render when user folders are ready
+  useEffect(() => {
+    if (autoLoaded || userFolders.length === 0) return;
+    const desktop = userFolders.find((f) => f.name === 'desktop');
+    if (desktop) {
+      setFolderPath(desktop.path);
+      setActiveQuickFolder('desktop');
+      doScan(desktop.path);
+      setAutoLoaded(true);
+    }
+  }, [userFolders, autoLoaded, doScan]);
+
+  const handleQuickFolder = (name: string, path: string) => {
+    setFolderPath(path);
+    setActiveQuickFolder(name);
+    setMimeFilter('all');
+    doScan(path);
+  };
+
   const handleSelectFolder = async () => {
     const path = await selectFolder();
     if (path) {
       setFolderPath(path);
+      setActiveQuickFolder(null);
+      setMimeFilter('all');
       doScan(path);
     }
   };
 
-  // All items in one list (both original + virtualized)
-  const filteredItems = useMemo(() => {
-    if (mimeFilter === 'all') return items;
-    return items.filter((item) => getMimeCategory(item.mime) === mimeFilter);
-  }, [items, mimeFilter]);
+  const handleNavigateToDir = (dirPath: string) => {
+    setFolderPath(dirPath);
+    setActiveQuickFolder(null);
+    setMimeFilter('all');
+    doScan(dirPath);
+  };
+
+  const handleGoUp = () => {
+    if (!folderPath) return;
+    const parent = getParentPath(folderPath);
+    if (parent) {
+      handleNavigateToDir(parent);
+    }
+  };
+
+  // Separate directories (always visible) and files (filterable)
+  const directories = useMemo(() => items.filter((i) => i.isDirectory), [items]);
+  const fileItems = useMemo(() => items.filter((i) => !i.isDirectory), [items]);
+
+  const filteredFiles = useMemo(() => {
+    if (mimeFilter === 'all') return fileItems;
+    return fileItems.filter((item) => getMimeCategory(item.mime) === mimeFilter);
+  }, [fileItems, mimeFilter]);
+
+  const allDisplayItems = useMemo(() => [...directories, ...filteredFiles], [directories, filteredFiles]);
 
   const selectedItems = useMemo(() => {
-    return filteredItems.filter((item) => selected.has(item.path));
-  }, [filteredItems, selected]);
+    return filteredFiles.filter((item) => selected.has(item.path));
+  }, [filteredFiles, selected]);
 
   const selectedOriginals = useMemo(() => selectedItems.filter((i) => !i.isVirtualized), [selectedItems]);
   const selectedVirtualized = useMemo(() => selectedItems.filter((i) => i.isVirtualized), [selectedItems]);
@@ -279,9 +348,9 @@ export function DiskVirtualize() {
 
   const handleSelectAll = () => {
     setSelected((prev) => {
-      const allSelected = filteredItems.every((item) => prev.has(item.path));
+      const allSelected = filteredFiles.every((item) => prev.has(item.path));
       if (allSelected) return new Set();
-      return new Set(filteredItems.map((item) => item.path));
+      return new Set(filteredFiles.map((item) => item.path));
     });
   };
 
@@ -289,8 +358,8 @@ export function DiskVirtualize() {
     setShowConfirm(null);
     await push(paths);
     setSelected(new Set());
-    // Re-scan to refresh list
     if (folderPath) doScan(folderPath);
+    loadStatus();
   };
 
   const handleRestore = async (paths: string[]) => {
@@ -298,6 +367,7 @@ export function DiskVirtualize() {
     await pull(paths);
     setSelected(new Set());
     if (folderPath) doScan(folderPath);
+    loadStatus();
   };
 
   const isBusy = isScanning || isPushing || isPulling;
@@ -317,35 +387,56 @@ export function DiskVirtualize() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: folder picker + threshold + settings */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {folderPath ? (
-          <>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-mg-card/40 border border-mg-border/30 min-w-0">
-              <svg className="w-4 h-4 text-mg-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-              <span className="text-sm text-mg-text truncate max-w-[300px]" title={folderPath}>
-                {folderPath}
-              </span>
-            </div>
-            <button
-              onClick={handleSelectFolder}
-              disabled={isBusy}
-              className="px-3 py-1.5 text-xs rounded bg-mg-border/40 text-mg-muted hover:text-mg-text hover:bg-mg-border/60 disabled:opacity-50 transition-colors"
-            >
-              {t('virt.changeFolder', locale)}
-            </button>
-          </>
-        ) : (
+      {/* Virtualization stats banner */}
+      {status && status.virtualizedFiles > 0 && (
+        <div className="flex items-center gap-6 px-4 py-3 rounded-lg bg-mg-primary/10 border border-mg-primary/20">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-mg-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+            <span className="text-sm font-medium text-mg-text">{t('dashboard.virtTitle', locale)}</span>
+          </div>
+          <div className="text-sm text-mg-muted">
+            {t('dashboard.virtFiles', locale)}: <span className="text-mg-text font-medium">{status.virtualizedFiles}</span>
+          </div>
+          <div className="text-sm text-mg-muted">
+            {t('dashboard.virtSaved', locale)}: <span className="text-green-400 font-medium">{formatBytes(status.savedBytes)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Quick folder bar */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {userFolders.map((f) => (
           <button
-            onClick={handleSelectFolder}
+            key={f.name}
+            onClick={() => handleQuickFolder(f.name, f.path)}
             disabled={isBusy}
-            className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
+              activeQuickFolder === f.name
+                ? 'bg-mg-primary/20 text-mg-primary border border-mg-primary/30'
+                : 'bg-mg-border/30 text-mg-muted hover:text-mg-text hover:bg-mg-border/50 border border-transparent'
+            } disabled:opacity-50`}
           >
-            {t('virt.selectFolder', locale)}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            {FOLDER_NAME_KEYS[f.name] ? t(FOLDER_NAME_KEYS[f.name], locale) : f.name}
           </button>
-        )}
+        ))}
+        <button
+          onClick={handleSelectFolder}
+          disabled={isBusy}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
+            folderPath && !activeQuickFolder
+              ? 'bg-mg-primary/20 text-mg-primary border border-mg-primary/30'
+              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text hover:bg-mg-border/50 border border-transparent'
+          } disabled:opacity-50`}
+        >
+          {t('virt.folder.other', locale)}
+        </button>
+
+        <div className="flex-1" />
 
         {isScanning && (
           <button
@@ -355,8 +446,6 @@ export function DiskVirtualize() {
             {t('virt.cancel', locale)}
           </button>
         )}
-
-        <div className="flex-1" />
 
         {/* Settings gear */}
         <button
@@ -373,6 +462,30 @@ export function DiskVirtualize() {
         </button>
       </div>
 
+      {/* Path bar with up button */}
+      {folderPath && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleGoUp}
+            disabled={isBusy || !getParentPath(folderPath)}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-mg-border/30 text-mg-muted hover:text-mg-text hover:bg-mg-border/50 disabled:opacity-30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+            {t('virt.folderUp', locale)}
+          </button>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-mg-card/40 border border-mg-border/30 min-w-0 flex-1">
+            <svg className="w-4 h-4 text-mg-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <span className="text-sm text-mg-text truncate" title={folderPath}>
+              {folderPath}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Config panel (collapsible) */}
       {showConfig && (
         <ConfigPanel config={config} onSave={saveConfig} locale={locale} />
@@ -386,17 +499,6 @@ export function DiskVirtualize() {
         </div>
       )}
 
-      {/* Empty state: no folder selected */}
-      {!folderPath && !isScanning && (
-        <div className="text-center py-20">
-          <svg className="w-12 h-12 mx-auto text-mg-muted/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          <div className="text-mg-muted text-sm">{t('virt.empty', locale)}</div>
-          <div className="text-mg-muted/60 text-xs mt-1">{t('virt.emptyHint', locale)}</div>
-        </div>
-      )}
-
       {/* Empty state: folder selected but no files */}
       {folderPath && !isScanning && items.length === 0 && (
         <div className="text-center py-16">
@@ -405,47 +507,56 @@ export function DiskVirtualize() {
         </div>
       )}
 
-      {/* File list */}
-      {filteredItems.length > 0 && (
-        <>
-          {/* Filter bar + select all */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleSelectAll}
-              className={`text-xs px-2.5 py-1 rounded transition-colors ${
-                filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.path))
-                  ? 'bg-mg-primary/20 text-mg-primary'
-                  : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-              }`}
-            >
-              {t('virt.selectAll', locale)}
-            </button>
-            <span className="text-xs text-mg-muted">
-              {filteredItems.length} {t('virt.files', locale)}
-            </span>
+      {/* Filter bar + select all (always visible when folder has files) */}
+      {fileItems.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleSelectAll}
+            disabled={filteredFiles.length === 0}
+            className={`text-xs px-2.5 py-1 rounded transition-colors ${
+              filteredFiles.length > 0 && filteredFiles.every((item) => selected.has(item.path))
+                ? 'bg-mg-primary/20 text-mg-primary'
+                : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+            }`}
+          >
+            {t('virt.selectAll', locale)}
+          </button>
+          <span className="text-xs text-mg-muted">
+            {filteredFiles.length} {t('virt.files', locale)}
+          </span>
 
-            <div className="flex-1" />
+          <div className="flex-1" />
 
-            <div className="flex gap-1">
-              {(['all', 'video', 'image', 'archive', 'document', 'other'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => { setMimeFilter(f); setSelected(new Set()); }}
-                  className={`px-2.5 py-1 text-xs rounded transition-colors ${
-                    mimeFilter === f
-                      ? 'bg-mg-primary/20 text-mg-primary'
-                      : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-                  }`}
-                >
-                  {t(`virt.filter.${f}` as Parameters<typeof t>[0], locale)}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-1">
+            {(['all', 'video', 'image', 'archive', 'document', 'other'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => { setMimeFilter(f); setSelected(new Set()); }}
+                className={`px-2.5 py-1 text-xs rounded transition-colors ${
+                  mimeFilter === f
+                    ? 'bg-mg-primary/20 text-mg-primary'
+                    : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+                }`}
+              >
+                {t(`virt.filter.${f}` as Parameters<typeof t>[0], locale)}
+              </button>
+            ))}
           </div>
+        </div>
+      )}
 
-          {/* Items */}
-          <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20 max-h-[420px] overflow-y-auto">
-            {filteredItems.map((item) => (
+      {/* File list (directories + filtered files) */}
+      {allDisplayItems.length > 0 && (
+        <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20 max-h-[420px] overflow-y-auto">
+          {allDisplayItems.map((item) =>
+            item.isDirectory ? (
+              <DirRow
+                key={item.path}
+                item={item}
+                isBusy={isBusy}
+                onNavigate={() => handleNavigateToDir(item.path)}
+              />
+            ) : (
               <FileRow
                 key={item.path}
                 item={item}
@@ -461,9 +572,16 @@ export function DiskVirtualize() {
                   }
                 }}
               />
-            ))}
-          </div>
-        </>
+            )
+          )}
+        </div>
+      )}
+
+      {/* No results for current filter */}
+      {fileItems.length > 0 && filteredFiles.length === 0 && directories.length === 0 && (
+        <div className="text-center py-10 text-mg-muted text-sm">
+          {t('virt.noFilterResults', locale)}
+        </div>
       )}
 
       {/* Footer: selection + batch actions */}
@@ -496,17 +614,17 @@ export function DiskVirtualize() {
         </div>
       )}
 
-      {/* Progress bar */}
-      {(isPushing || isPulling) && progress && (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-sm text-mg-muted">
+      {/* Processing indicator */}
+      {(isPushing || isPulling) && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-mg-text">
             <div className="w-4 h-4 border-2 border-mg-primary border-t-transparent rounded-full animate-spin" />
-            <span>
-              {t(`virt.phase.${progress.phase}` as Parameters<typeof t>[0], locale)} ({progress.current}/{progress.total})
-            </span>
+            <span className="font-medium">{t('virt.processing', locale)}</span>
+            {progress && progress.total > 0 && (
+              <span className="text-mg-muted">({progress.current}/{progress.total})</span>
+            )}
           </div>
-          <div className="text-xs text-mg-muted truncate">{progress.currentFile}</div>
-          {progress.total > 0 && (
+          {progress && progress.total > 0 && (
             <div className="w-full bg-mg-border/30 rounded-full h-1.5">
               <div
                 className="bg-mg-primary h-1.5 rounded-full transition-all"
@@ -596,6 +714,32 @@ export function DiskVirtualize() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DirRow({
+  item,
+  isBusy,
+  onNavigate,
+}: {
+  item: VirtScanItem;
+  isBusy: boolean;
+  onNavigate: () => void;
+}) {
+  const dirName = item.path.split('\\').pop() || item.path.split('/').pop() || item.path;
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-2 hover:bg-mg-card/30 transition-colors cursor-pointer"
+      onClick={() => !isBusy && onNavigate()}
+    >
+      <svg className="w-5 h-5 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z" />
+      </svg>
+      <span className="text-sm text-mg-text font-medium truncate flex-1">{dirName}</span>
+      <svg className="w-4 h-4 text-mg-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
     </div>
   );
 }

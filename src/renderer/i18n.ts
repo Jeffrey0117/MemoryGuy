@@ -16,6 +16,10 @@ const translations = {
   'dashboard.cpuLoad': { en: 'CPU Load', zh: 'CPU 負載' },
   'dashboard.ramHistory': { en: 'RAM History (30 min)', zh: 'RAM 歷史 (30 分鐘)' },
   'dashboard.cpuHistory': { en: 'CPU History (30 min)', zh: 'CPU 歷史 (30 分鐘)' },
+  'dashboard.virtTitle': { en: 'Disk Virtualization', zh: '磁碟虛擬化' },
+  'dashboard.virtFiles': { en: 'Virtualized Files', zh: '已虛擬化檔案' },
+  'dashboard.virtSaved': { en: 'Space Saved', zh: '節省空間' },
+  'dashboard.virtNotConfigured': { en: 'Not configured', zh: '尚未設定' },
 
   // Process List
   'process.loading': { en: 'Loading processes...', zh: '載入程序...' },
@@ -212,6 +216,14 @@ const translations = {
 
   // Disk Virtualization
   'tab.virtualize': { en: 'Virtualize', zh: '虛擬化' },
+  'virt.folder.desktop': { en: 'Desktop', zh: '桌面' },
+  'virt.folder.documents': { en: 'Documents', zh: '文件' },
+  'virt.folder.downloads': { en: 'Downloads', zh: '下載' },
+  'virt.folder.pictures': { en: 'Pictures', zh: '圖片' },
+  'virt.folder.videos': { en: 'Videos', zh: '影片' },
+  'virt.folder.music': { en: 'Music', zh: '音樂' },
+  'virt.folder.other': { en: 'Other...', zh: '其他...' },
+  'virt.folderUp': { en: 'Up', zh: '上一層' },
   'virt.selectFolder': { en: 'Select Folder', zh: '選擇資料夾' },
   'virt.changeFolder': { en: 'Change', zh: '切換' },
   'virt.threshold': { en: 'Min size', zh: '最小大小' },
@@ -231,6 +243,7 @@ const translations = {
   'virt.batchRestore': { en: 'Batch Restore', zh: '批次還原' },
   'virt.virtualizing': { en: 'Virtualizing...', zh: '虛擬化中...' },
   'virt.restoring': { en: 'Restoring...', zh: '還原中...' },
+  'virt.processing': { en: 'Processing...', zh: '處理中...' },
   // Filters
   'virt.filter.all': { en: 'All', zh: '全部' },
   'virt.filter.video': { en: 'Video', zh: '影片' },
@@ -273,6 +286,7 @@ const translations = {
   'virt.emptyHint': { en: 'Files above the size threshold will appear here', zh: '超過大小門檻的檔案會顯示在這裡' },
   'virt.noFiles': { en: 'No files found', zh: '沒有找到檔案' },
   'virt.noFilesHint': { en: 'This folder appears to be empty', zh: '此資料夾似乎沒有檔案' },
+  'virt.noFilterResults': { en: 'No files match this filter', zh: '沒有符合此篩選條件的檔案' },
   // Progress phases
   'virt.phase.scanning': { en: 'Scanning', zh: '掃描中' },
   'virt.phase.hashing': { en: 'Hashing', zh: '計算雜湊' },

@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, shell, clipboard, dialog } from 'electron';
+import { ipcMain, BrowserWindow, shell, clipboard, dialog, app } from 'electron';
 import { IPC, DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX } from '@shared/constants';
 import type { SystemMonitor } from './services/system-monitor';
 import type { ProcessMonitor } from './services/process-monitor';
@@ -327,6 +327,24 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
   });
 
   // --- Disk virtualization ---
+  ipcMain.handle(IPC.VIRT_GET_USER_FOLDERS, () => {
+    const names: Array<{ key: Parameters<typeof app.getPath>[0]; name: string }> = [
+      { key: 'desktop', name: 'desktop' },
+      { key: 'documents', name: 'documents' },
+      { key: 'downloads', name: 'downloads' },
+      { key: 'pictures', name: 'pictures' },
+      { key: 'videos', name: 'videos' },
+      { key: 'music', name: 'music' },
+    ];
+    return names.map(({ key, name }) => {
+      try {
+        return { name, path: app.getPath(key) };
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+  });
+
   ipcMain.handle(IPC.VIRT_SCAN, async () => {
     return diskVirtualizer.scan({});
   });

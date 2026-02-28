@@ -15,6 +15,9 @@ export function useVirtualize() {
   const [status, setStatus] = useState<VirtStatusResult | null>(null);
   const [config, setConfig] = useState<VirtConfig | null>(null);
 
+  // User folders (quick access)
+  const [userFolders, setUserFolders] = useState<readonly { name: string; path: string }[]>([]);
+
   // Watch state
   const [watchFolders, setWatchFolders] = useState<readonly WatchFolder[]>([]);
   const [watchEvents, setWatchEvents] = useState<readonly WatchEvent[]>([]);
@@ -126,6 +129,15 @@ export function useVirtualize() {
     setConfig(newConfig);
   }, []);
 
+  const loadUserFolders = useCallback(async () => {
+    try {
+      const folders = await api.virtGetUserFolders();
+      setUserFolders(folders);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Watch folder operations
   const loadWatchFolders = useCallback(async () => {
     try {
@@ -188,6 +200,9 @@ export function useVirtualize() {
     cancel,
     loadStatus,
     saveConfig,
+    // User folders
+    userFolders,
+    loadUserFolders,
     // Watch
     watchFolders,
     watchEvents,

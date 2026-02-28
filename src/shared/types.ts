@@ -216,6 +216,7 @@ export interface VirtScanItem {
   readonly mime: string
   readonly mtime: number
   readonly isVirtualized: boolean
+  readonly isDirectory?: boolean
 }
 
 export interface VirtScanResult {
@@ -348,6 +349,7 @@ export interface MemoryGuyAPI {
   onDiskScanProgress: (callback: (progress: DiskScanProgress) => void) => () => void
 
   // Disk virtualization
+  virtGetUserFolders: () => Promise<{ name: string; path: string }[]>
   virtScan: () => Promise<VirtScanResult>
   virtScanFolder: (folderPath: string) => Promise<VirtScanResult>
   virtSelectFolder: () => Promise<string | null>

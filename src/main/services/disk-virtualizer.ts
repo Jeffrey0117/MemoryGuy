@@ -13,6 +13,12 @@ import { runPs, psEscape } from './powershell'
 import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult } from '@shared/types'
 
 const CONFIG_FILE = 'refile-config.json'
+const STATS_FILE = 'refile-stats.json'
+
+interface VirtStats {
+  virtualizedFiles: number
+  savedBytes: number
+}
 
 const EXCLUDED_DIR_NAMES = new Set([
   'windows',
@@ -97,6 +103,27 @@ export class DiskVirtualizer extends EventEmitter {
     return path.join(app.getPath('userData'), CONFIG_FILE)
   }
 
+  private getStatsPath(): string {
+    return path.join(app.getPath('userData'), STATS_FILE)
+  }
+
+  private loadStats(): VirtStats {
+    try {
+      const raw = fs.readFileSync(this.getStatsPath(), 'utf-8')
+      const parsed = JSON.parse(raw) as VirtStats
+      return {
+        virtualizedFiles: typeof parsed.virtualizedFiles === 'number' ? parsed.virtualizedFiles : 0,
+        savedBytes: typeof parsed.savedBytes === 'number' ? parsed.savedBytes : 0,
+      }
+    } catch {
+      return { virtualizedFiles: 0, savedBytes: 0 }
+    }
+  }
+
+  private saveStats(stats: VirtStats): void {
+    fs.writeFileSync(this.getStatsPath(), JSON.stringify(stats), 'utf-8')
+  }
+
   loadConfig(): RefileConfig | null {
     try {
       const raw = fs.readFileSync(this.getConfigPath(), 'utf-8')
@@ -148,6 +175,18 @@ export class DiskVirtualizer extends EventEmitter {
         } catch {
           continue
         }
+        if (stat.isDirectory()) {
+          items.push({
+            path: fullPath,
+            size: 0,
+            mime: 'inode/directory',
+            mtime: stat.mtimeMs,
+            isVirtualized: false,
+            isDirectory: true,
+          })
+          continue
+        }
+
         if (!stat.isFile()) continue
 
         // Check if this is a pointer file (.refile, .repic, etc.)
@@ -193,7 +232,11 @@ export class DiskVirtualizer extends EventEmitter {
     } finally {
       this.abortController = null
     }
-    items.sort((a, b) => b.size - a.size)
+    // Sort: directories first (alphabetical), then files by size descending
+    const dirs = items.filter((i) => i.isDirectory).sort((a, b) => a.path.localeCompare(b.path))
+    const files = items.filter((i) => !i.isDirectory).sort((a, b) => b.size - a.size)
+    items.length = 0
+    items.push(...dirs, ...files)
 
     return {
       items,
@@ -426,6 +469,15 @@ export class DiskVirtualizer extends EventEmitter {
 
     this.abortController = null
 
+    // Update local stats
+    if (pushed > 0) {
+      const stats = this.loadStats()
+      this.saveStats({
+        virtualizedFiles: stats.virtualizedFiles + pushed,
+        savedBytes: stats.savedBytes + freedBytes,
+      })
+    }
+
     return { pushed, failed: filePaths.length - pushed, freedBytes, errors }
   }
 
@@ -519,51 +571,24 @@ export class DiskVirtualizer extends EventEmitter {
 
     this.abortController = null
 
+    // Update local stats
+    if (pulled > 0) {
+      const stats = this.loadStats()
+      this.saveStats({
+        virtualizedFiles: Math.max(0, stats.virtualizedFiles - pulled),
+        savedBytes: Math.max(0, stats.savedBytes - restoredBytes),
+      })
+    }
+
     return { pulled, failed: refilePaths.length - pulled, restoredBytes, errors }
   }
 
   async getStatus(): Promise<VirtStatusResult> {
     const config = this.loadConfig()
-    let virtualizedFiles = 0
-    let savedBytes = 0
-
-    try {
-      const script = `Get-Volume | Where-Object { $_.FileSystemType -eq 'NTFS' -and $_.DriveLetter } | Select-Object -ExpandProperty DriveLetter`
-      const volumeOutput = await runPs(script)
-      const driveLetters = volumeOutput.trim().split(/\r?\n/).filter(Boolean).map((d) => d.trim())
-
-      for (const letter of driveLetters) {
-        if (!isValidDriveLetter(letter)) continue
-        const drive = `${letter}:\\`
-
-        try {
-          const statusExtFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
-          const refileScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Include ${statusExtFilter} -ErrorAction SilentlyContinue | Select-Object FullName | ConvertTo-Json -Compress`
-          const output = await runPs(refileScript)
-          const parsed = output.trim()
-          if (!parsed) continue
-
-          const files = JSON.parse(parsed.startsWith('[') ? parsed : `[${parsed}]`) as { FullName: string }[]
-
-          for (const file of files) {
-            if (isSystemPath(file.FullName)) continue
-            const pointer = readRefilePointer(file.FullName)
-            if (pointer) {
-              virtualizedFiles++
-              savedBytes += pointer.size
-            }
-          }
-        } catch {
-          // Skip
-        }
-      }
-    } catch {
-      // Ignore errors
-    }
-
+    const stats = this.loadStats()
     return {
-      virtualizedFiles,
-      savedBytes,
+      virtualizedFiles: stats.virtualizedFiles,
+      savedBytes: stats.savedBytes,
       hasConfig: config !== null,
     }
   }

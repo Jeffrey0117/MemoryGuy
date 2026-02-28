@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   },
 
   // Disk virtualization
+  virtGetUserFolders: () => ipcRenderer.invoke(IPC.VIRT_GET_USER_FOLDERS),
   virtScan: () => ipcRenderer.invoke(IPC.VIRT_SCAN),
   virtScanFolder: (folderPath: string) => ipcRenderer.invoke(IPC.VIRT_SCAN_FOLDER, folderPath),
   virtSelectFolder: () => ipcRenderer.invoke(IPC.VIRT_SELECT_FOLDER),

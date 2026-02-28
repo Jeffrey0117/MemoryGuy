@@ -287,6 +287,16 @@ const translations = {
   'virt.noFiles': { en: 'No files found', zh: '沒有找到檔案' },
   'virt.noFilesHint': { en: 'This folder appears to be empty', zh: '此資料夾似乎沒有檔案' },
   'virt.noFilterResults': { en: 'No files match this filter', zh: '沒有符合此篩選條件的檔案' },
+  // View toggle
+  'virt.view.browser': { en: 'Folder Browser', zh: '資料夾瀏覽' },
+  'virt.view.overview': { en: 'Overview', zh: '總覽' },
+  // Overview
+  'virt.overview.totalFiles': { en: 'Total Files', zh: '總檔案數' },
+  'virt.overview.totalSaved': { en: 'Total Saved', zh: '總節省' },
+  'virt.overview.scanFolders': { en: 'Scan Folders', zh: '掃描資料夾' },
+  'virt.overview.rebuild': { en: 'Rebuild Registry', zh: '重建索引' },
+  'virt.overview.empty': { en: 'No virtualized files', zh: '尚無虛擬化檔案' },
+  'virt.overview.scanResult': { en: 'Scan complete: {added} added, {migrated} migrated', zh: '掃描完成：新增 {added}，遷移 {migrated}' },
   // Progress phases
   'virt.phase.scanning': { en: 'Scanning', zh: '掃描中' },
   'virt.phase.hashing': { en: 'Hashing', zh: '計算雜湊' },

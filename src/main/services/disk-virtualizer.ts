@@ -10,7 +10,8 @@ import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePa
 import { hashFile, verifyHash } from './refile/hasher'
 import { getFileMeta, restoreFileMeta } from './refile/file-meta'
 import { runPs, psEscape } from './powershell'
-import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult } from '@shared/types'
+import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtRegistryEntry } from '@shared/types'
+import type { RefileRegistry } from './refile/refile-registry'
 
 const CONFIG_FILE = 'refile-config.json'
 const STATS_FILE = 'refile-stats.json'
@@ -98,6 +99,11 @@ export function validateConfig(config: unknown): RefileConfig | null {
 
 export class DiskVirtualizer extends EventEmitter {
   private abortController: AbortController | null = null
+  private registry: RefileRegistry | null = null
+
+  setRegistry(registry: RefileRegistry): void {
+    this.registry = registry
+  }
 
   private getConfigPath(): string {
     return path.join(app.getPath('userData'), CONFIG_FILE)
@@ -462,6 +468,18 @@ export class DiskVirtualizer extends EventEmitter {
 
         pushed++
         freedBytes += stat.size
+
+        // Update registry
+        this.registry?.addEntries([{
+          pointerPath: refilePath,
+          originalPath: filePath,
+          name: fileName,
+          hash,
+          size: stat.size,
+          mime: mimeType,
+          backend: config.defaultBackend,
+          createdAt: pointer.createdAt,
+        } satisfies VirtRegistryEntry])
       } catch (err) {
         errors.push(`${filePath}: ${err instanceof Error ? err.message : String(err)}`)
       }
@@ -564,6 +582,9 @@ export class DiskVirtualizer extends EventEmitter {
 
         pulled++
         restoredBytes += pointer.size
+
+        // Update registry
+        this.registry?.removeEntries([refilePath])
       } catch (err) {
         errors.push(`${refilePath}: ${err instanceof Error ? err.message : String(err)}`)
       }

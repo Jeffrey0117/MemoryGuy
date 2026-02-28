@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtConfig, WatchFolder, WatchEvent, MemoryGuyAPI } from '@shared/types';
+import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtConfig, WatchFolder, WatchEvent, VirtRegistryEntry, VirtRegistryStats, VirtRegistryScanResult, MemoryGuyAPI } from '@shared/types';
 
 const api = (window as unknown as { memoryGuy: MemoryGuyAPI }).memoryGuy;
 
@@ -21,6 +21,11 @@ export function useVirtualize() {
   // Watch state
   const [watchFolders, setWatchFolders] = useState<readonly WatchFolder[]>([]);
   const [watchEvents, setWatchEvents] = useState<readonly WatchEvent[]>([]);
+
+  // Registry state
+  const [registryEntries, setRegistryEntries] = useState<readonly VirtRegistryEntry[]>([]);
+  const [registryStats, setRegistryStats] = useState<VirtRegistryStats | null>(null);
+  const [isRegistryLoading, setIsRegistryLoading] = useState(false);
 
   useEffect(() => {
     const unsub = api.onVirtProgress((p: VirtProgress) => {
@@ -181,6 +186,43 @@ export function useVirtualize() {
     return api.virtSelectWatchFolder();
   }, []);
 
+  // Registry operations
+  const loadRegistry = useCallback(async () => {
+    setIsRegistryLoading(true);
+    try {
+      const [entries, stats] = await Promise.all([
+        api.virtRegistryList(),
+        api.virtRegistryStats(),
+      ]);
+      setRegistryEntries(entries);
+      setRegistryStats(stats);
+    } catch {
+      // ignore
+    } finally {
+      setIsRegistryLoading(false);
+    }
+  }, []);
+
+  const scanRegistryFolders = useCallback(async (folderPaths: string[]): Promise<VirtRegistryScanResult> => {
+    try {
+      const result = await api.virtRegistryScanFolders(folderPaths);
+      await loadRegistry();
+      return result;
+    } catch {
+      return { added: 0, migrated: 0 };
+    }
+  }, [loadRegistry]);
+
+  const rebuildRegistry = useCallback(async (): Promise<VirtRegistryScanResult> => {
+    try {
+      const result = await api.virtRegistryRebuild();
+      await loadRegistry();
+      return result;
+    } catch {
+      return { added: 0, migrated: 0 };
+    }
+  }, [loadRegistry]);
+
   return {
     items,
     isScanning,
@@ -213,5 +255,12 @@ export function useVirtualize() {
     toggleWatchFolder,
     clearWatchEvents,
     selectWatchFolder,
+    // Registry
+    registryEntries,
+    registryStats,
+    isRegistryLoading,
+    loadRegistry,
+    scanRegistryFolders,
+    rebuildRegistry,
   };
 }

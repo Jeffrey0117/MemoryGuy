@@ -13,6 +13,7 @@ import type { StartupManager } from './services/startup-manager';
 import type { EnvReader } from './services/env-reader';
 import type { DiskCleaner } from './services/disk-cleaner';
 import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
+import type { RefileRegistry } from './services/refile/refile-registry';
 import type { RefileWatcher } from './services/refile-watcher';
 import { killByPid } from './services/process-killer';
 import { isRefilePath } from './services/refile/refile-format';
@@ -32,6 +33,7 @@ interface Deps {
   envReader: EnvReader;
   diskCleaner: DiskCleaner;
   diskVirtualizer: DiskVirtualizer;
+  refileRegistry: RefileRegistry;
   refileWatcher: RefileWatcher;
   getMainWindow: () => BrowserWindow | null;
 }
@@ -40,7 +42,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileWatcher, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileRegistry, refileWatcher, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -444,6 +446,31 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
       properties: ['openDirectory'],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+
+  // --- Registry ---
+  ipcMain.handle(IPC.VIRT_REGISTRY_LIST, () => {
+    return refileRegistry.list();
+  });
+
+  ipcMain.handle(IPC.VIRT_REGISTRY_STATS, () => {
+    return refileRegistry.stats();
+  });
+
+  ipcMain.handle(IPC.VIRT_REGISTRY_SCAN_FOLDERS, (_event, folderPaths: unknown) => {
+    if (!Array.isArray(folderPaths) || folderPaths.length === 0 || folderPaths.length > 50) {
+      return { added: 0, migrated: 0 };
+    }
+    const valid = folderPaths.filter(
+      (p): p is string => typeof p === 'string' && p.length > 0 && p.length < 2048
+    );
+    if (valid.length === 0) return { added: 0, migrated: 0 };
+    return refileRegistry.scanFolders(valid);
+  });
+
+  ipcMain.handle(IPC.VIRT_REGISTRY_REBUILD, () => {
+    const watchPaths = refileWatcher.getFolders().filter((f) => f.enabled).map((f) => f.path);
+    return refileRegistry.rebuild(watchPaths);
   });
 
   refileWatcher.on('watch-event', (event: WatchEvent) => {

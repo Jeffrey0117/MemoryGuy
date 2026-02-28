@@ -290,6 +290,34 @@ export interface WatchEvent {
   readonly error?: string
 }
 
+// --- Virtual file registry ---
+
+export interface VirtRegistryEntry {
+  readonly pointerPath: string
+  readonly originalPath: string
+  readonly name: string
+  readonly hash: string
+  readonly size: number
+  readonly mime: string
+  readonly backend: string
+  readonly createdAt: number
+}
+
+export interface VirtRegistryStats {
+  readonly totalFiles: number
+  readonly totalSavedBytes: number
+  readonly byType: readonly {
+    readonly category: string
+    readonly count: number
+    readonly bytes: number
+  }[]
+}
+
+export interface VirtRegistryScanResult {
+  readonly added: number
+  readonly migrated: number
+}
+
 // --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
@@ -369,6 +397,12 @@ export interface MemoryGuyAPI {
   virtGetWatchEvents: () => Promise<WatchEvent[]>
   virtClearWatchEvents: () => Promise<void>
   virtSelectWatchFolder: () => Promise<string | null>
+  // Registry
+  virtRegistryList: () => Promise<VirtRegistryEntry[]>
+  virtRegistryStats: () => Promise<VirtRegistryStats>
+  virtRegistryScanFolders: (folderPaths: string[]) => Promise<VirtRegistryScanResult>
+  virtRegistryRebuild: () => Promise<VirtRegistryScanResult>
+
   onVirtWatchEvent: (callback: (event: WatchEvent) => void) => () => void
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void

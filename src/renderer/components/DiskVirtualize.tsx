@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useVirtualize } from '../hooks/useVirtualize';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
+import { VirtOverview } from './VirtOverview';
 import type { VirtScanItem, VirtConfig } from '@shared/types';
 
 function formatBytes(bytes: number): string {
@@ -243,6 +244,8 @@ export function DiskVirtualize() {
     pushResult, pullResult, config, status, loadStatus,
     scanFolder, selectFolder, push, pull, cancel, saveConfig,
     userFolders, loadUserFolders,
+    registryEntries, registryStats, isRegistryLoading,
+    loadRegistry, scanRegistryFolders, rebuildRegistry,
   } = useVirtualize();
   const locale = useAppStore((s) => s.locale);
   const activeTab = useAppStore((s) => s.activeTab);
@@ -255,6 +258,7 @@ export function DiskVirtualize() {
     }
   }, [activeTab, loadStatus, loadUserFolders]);
 
+  const [subView, setSubView] = useState<'browser' | 'overview'>('browser');
   const [folderPath, setFolderPath] = useState<string | null>(null);
   const [activeQuickFolder, setActiveQuickFolder] = useState<string | null>(null);
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all');
@@ -370,6 +374,11 @@ export function DiskVirtualize() {
     loadStatus();
   };
 
+  const handleSwitchToOverview = useCallback(() => {
+    setSubView('overview');
+    loadRegistry();
+  }, [loadRegistry]);
+
   const isBusy = isScanning || isPushing || isPulling;
 
   // No config yet — show setup
@@ -387,6 +396,48 @@ export function DiskVirtualize() {
 
   return (
     <div className="space-y-4">
+      {/* View toggle */}
+      <div className="flex gap-1">
+        <button
+          onClick={() => setSubView('browser')}
+          className={`px-3 py-1.5 text-xs rounded transition-colors ${
+            subView === 'browser'
+              ? 'bg-mg-primary/20 text-mg-primary border border-mg-primary/30'
+              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text border border-transparent'
+          }`}
+        >
+          {t('virt.view.browser', locale)}
+        </button>
+        <button
+          onClick={handleSwitchToOverview}
+          className={`px-3 py-1.5 text-xs rounded transition-colors ${
+            subView === 'overview'
+              ? 'bg-mg-primary/20 text-mg-primary border border-mg-primary/30'
+              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text border border-transparent'
+          }`}
+        >
+          {t('virt.view.overview', locale)}
+        </button>
+      </div>
+
+      {/* Overview (keep-alive) */}
+      <div className={subView === 'overview' ? '' : 'hidden'}>
+        <VirtOverview
+          entries={registryEntries}
+          stats={registryStats}
+          isLoading={isRegistryLoading}
+          locale={locale}
+          onScanFolders={scanRegistryFolders}
+          onRebuild={rebuildRegistry}
+          onPull={(paths) => { pull(paths).then(() => loadRegistry()) }}
+          onSelectFolder={selectFolder}
+          isPulling={isPulling}
+        />
+      </div>
+
+      {/* Browser (keep-alive) */}
+      <div className={subView === 'browser' ? '' : 'hidden'}>
+
       {/* Virtualization stats banner */}
       {status && status.virtualizedFiles > 0 && (
         <div className="flex items-center gap-6 px-4 py-3 rounded-lg bg-mg-primary/10 border border-mg-primary/20">
@@ -714,6 +765,8 @@ export function DiskVirtualize() {
           )}
         </div>
       )}
+
+      </div>{/* end browser div */}
     </div>
   );
 }

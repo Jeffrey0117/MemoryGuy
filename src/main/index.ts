@@ -14,6 +14,7 @@ import { StartupManager } from './services/startup-manager';
 import { EnvReader } from './services/env-reader';
 import { DiskCleaner } from './services/disk-cleaner';
 import { DiskVirtualizer } from './services/disk-virtualizer';
+import { RefileRegistry } from './services/refile/refile-registry';
 import { RefileWatcher } from './services/refile-watcher';
 import { setupIpcHandlers } from './ipc-handlers';
 
@@ -54,6 +55,8 @@ const startupManager = new StartupManager();
 const envReader = new EnvReader();
 const diskCleaner = new DiskCleaner();
 const diskVirtualizer = new DiskVirtualizer();
+const refileRegistry = new RefileRegistry();
+diskVirtualizer.setRegistry(refileRegistry);
 const refileWatcher = new RefileWatcher(diskVirtualizer);
 
 function getPreloadPath(): string {
@@ -134,6 +137,7 @@ async function initialize(): Promise<void> {
     envReader,
     diskCleaner,
     diskVirtualizer,
+    refileRegistry,
     refileWatcher,
     getMainWindow: () => mainWindow,
   });
@@ -146,7 +150,16 @@ async function initialize(): Promise<void> {
   portScanner.start();
   devServerManager.start();
   optimizer.start();
+
+  const registryFile = path.join(app.getPath('userData'), 'refile-registry.json');
+  const registryIsNew = !fs.existsSync(registryFile);
+  refileRegistry.start();
   refileWatcher.start();
+
+  if (registryIsNew) {
+    const watchPaths = refileWatcher.getFolders().filter((f) => f.enabled).map((f) => f.path);
+    if (watchPaths.length > 0) refileRegistry.scanFolders(watchPaths);
+  }
 
   await createWindow();
 }

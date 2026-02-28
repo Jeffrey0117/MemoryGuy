@@ -81,6 +81,12 @@ export const IPC = {
   VIRT_SELECT_WATCH_FOLDER: 'virt-select-watch-folder',
   ON_VIRT_WATCH_EVENT: 'on-virt-watch-event',
 
+  // Registry
+  VIRT_REGISTRY_LIST: 'virt-registry-list',
+  VIRT_REGISTRY_STATS: 'virt-registry-stats',
+  VIRT_REGISTRY_SCAN_FOLDERS: 'virt-registry-scan-folders',
+  VIRT_REGISTRY_REBUILD: 'virt-registry-rebuild',
+
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',
   ON_PROCESS_UPDATE: 'on-process-update',

@@ -116,6 +116,12 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   virtGetWatchEvents: () => ipcRenderer.invoke(IPC.VIRT_GET_WATCH_EVENTS),
   virtClearWatchEvents: () => ipcRenderer.invoke(IPC.VIRT_CLEAR_WATCH_EVENTS),
   virtSelectWatchFolder: () => ipcRenderer.invoke(IPC.VIRT_SELECT_WATCH_FOLDER),
+  // Registry
+  virtRegistryList: () => ipcRenderer.invoke(IPC.VIRT_REGISTRY_LIST),
+  virtRegistryStats: () => ipcRenderer.invoke(IPC.VIRT_REGISTRY_STATS),
+  virtRegistryScanFolders: (folderPaths: string[]) => ipcRenderer.invoke(IPC.VIRT_REGISTRY_SCAN_FOLDERS, folderPaths),
+  virtRegistryRebuild: () => ipcRenderer.invoke(IPC.VIRT_REGISTRY_REBUILD),
+
   onVirtWatchEvent: (callback: (event: unknown) => void) => {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_VIRT_WATCH_EVENT, handler);

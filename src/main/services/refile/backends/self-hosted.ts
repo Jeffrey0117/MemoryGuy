@@ -12,7 +12,7 @@ export class SelfHostedBackend implements StorageBackend {
   async upload(buffer: Buffer, filename: string, mime: string): Promise<UploadResult> {
     const endpoint = this.config.endpoint.replace(/\/$/, '')
     const formData = new FormData()
-    formData.append('file', new File([new Uint8Array(buffer)], filename, { type: mime }))
+    formData.append('file', new Blob([buffer], { type: mime }), filename)
 
     const headers: Record<string, string> = {}
     if (this.config.apiKey) {

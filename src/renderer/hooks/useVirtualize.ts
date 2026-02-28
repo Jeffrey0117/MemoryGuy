@@ -60,8 +60,6 @@ export function useVirtualize() {
   const scanFolder = useCallback(async (folderPath: string) => {
     setIsScanning(true);
     setItems([]);
-    setPushResult(null);
-    setPullResult(null);
     setScanDurationMs(0);
     setProgress(null);
     try {

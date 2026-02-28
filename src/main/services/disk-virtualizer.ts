@@ -73,7 +73,13 @@ const dukSchema = z.object({
   apiKey: z.string().min(1).max(256),
 })
 
-const backendSchema = z.discriminatedUnion('type', [httpUploadSchema, s3Schema, dukSchema])
+const selfHostedSchema = z.object({
+  type: z.literal('self-hosted'),
+  endpoint: z.string().url().max(2048),
+  apiKey: z.string().max(256),
+})
+
+const backendSchema = z.discriminatedUnion('type', [httpUploadSchema, s3Schema, dukSchema, selfHostedSchema])
 
 const configSchema = z.object({
   defaultBackend: z.string().min(1).max(128),

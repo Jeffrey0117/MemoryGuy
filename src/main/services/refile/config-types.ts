@@ -24,7 +24,13 @@ export interface DukConfig {
   readonly apiKey: string
 }
 
-export type BackendConfig = HttpUploadConfig | S3Config | DukConfig
+export interface SelfHostedConfig {
+  readonly type: 'self-hosted'
+  readonly endpoint: string
+  readonly apiKey: string
+}
+
+export type BackendConfig = HttpUploadConfig | S3Config | DukConfig | SelfHostedConfig
 
 export interface RefileConfig {
   readonly defaultBackend: string

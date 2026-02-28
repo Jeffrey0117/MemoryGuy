@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtConfig, MemoryGuyAPI } from '@shared/types';
+import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtConfig, WatchFolder, WatchEvent, MemoryGuyAPI } from '@shared/types';
 
 const api = (window as unknown as { memoryGuy: MemoryGuyAPI }).memoryGuy;
 
@@ -15,6 +15,10 @@ export function useVirtualize() {
   const [status, setStatus] = useState<VirtStatusResult | null>(null);
   const [config, setConfig] = useState<VirtConfig | null>(null);
 
+  // Watch state
+  const [watchFolders, setWatchFolders] = useState<readonly WatchFolder[]>([]);
+  const [watchEvents, setWatchEvents] = useState<readonly WatchEvent[]>([]);
+
   useEffect(() => {
     const unsub = api.onVirtProgress((p: VirtProgress) => {
       setProgress(p);
@@ -24,6 +28,14 @@ export function useVirtualize() {
 
   useEffect(() => {
     api.virtConfigLoad().then((c) => setConfig(c)).catch(() => { /* ignore */ });
+  }, []);
+
+  // Subscribe to watch events
+  useEffect(() => {
+    const unsub = api.onVirtWatchEvent((event: WatchEvent) => {
+      setWatchEvents((prev) => [...prev, event]);
+    });
+    return unsub;
   }, []);
 
   const scan = useCallback(async (thresholdBytes: number) => {
@@ -45,6 +57,29 @@ export function useVirtualize() {
     }
   }, []);
 
+  const scanFolder = useCallback(async (folderPath: string, thresholdBytes: number) => {
+    setIsScanning(true);
+    setItems([]);
+    setPushResult(null);
+    setPullResult(null);
+    setScanDurationMs(0);
+    setProgress(null);
+    try {
+      const result: VirtScanResult = await api.virtScanFolder(folderPath, thresholdBytes);
+      setItems(result.items);
+      setScanDurationMs(result.scanDurationMs);
+    } catch {
+      // Scan cancelled or failed
+    } finally {
+      setIsScanning(false);
+      setProgress(null);
+    }
+  }, []);
+
+  const selectFolder = useCallback(async (): Promise<string | null> => {
+    return api.virtSelectFolder();
+  }, []);
+
   const push = useCallback(async (filePaths: string[]) => {
     setIsPushing(true);
     setPushResult(null);
@@ -52,7 +87,6 @@ export function useVirtualize() {
     try {
       const result = await api.virtPush(filePaths);
       setPushResult(result);
-      // Remove pushed items from the list
       const pushedPaths = new Set(filePaths);
       setItems((prev) => prev.filter((item) => !pushedPaths.has(item.path) || result.errors.some((e) => e.startsWith(`${item.path}:`))));
     } finally {
@@ -68,7 +102,6 @@ export function useVirtualize() {
     try {
       const result = await api.virtPull(refilePaths);
       setPullResult(result);
-      // Remove pulled items from the list
       const pulledPaths = new Set(refilePaths);
       setItems((prev) => prev.filter((item) => !pulledPaths.has(item.path) || result.errors.some((e) => e.startsWith(`${item.path}:`))));
     } finally {
@@ -95,6 +128,49 @@ export function useVirtualize() {
     setConfig(newConfig);
   }, []);
 
+  // Watch folder operations
+  const loadWatchFolders = useCallback(async () => {
+    try {
+      const folders = await api.virtGetWatchFolders();
+      setWatchFolders(folders);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const loadWatchEvents = useCallback(async () => {
+    try {
+      const events = await api.virtGetWatchEvents();
+      setWatchEvents(events);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const addWatchFolder = useCallback(async (folderPath: string, thresholdBytes: number) => {
+    await api.virtAddWatchFolder(folderPath, thresholdBytes);
+    await loadWatchFolders();
+  }, [loadWatchFolders]);
+
+  const removeWatchFolder = useCallback(async (id: string) => {
+    await api.virtRemoveWatchFolder(id);
+    await loadWatchFolders();
+  }, [loadWatchFolders]);
+
+  const toggleWatchFolder = useCallback(async (id: string) => {
+    await api.virtToggleWatchFolder(id);
+    await loadWatchFolders();
+  }, [loadWatchFolders]);
+
+  const clearWatchEvents = useCallback(async () => {
+    await api.virtClearWatchEvents();
+    setWatchEvents([]);
+  }, []);
+
+  const selectWatchFolder = useCallback(async (): Promise<string | null> => {
+    return api.virtSelectWatchFolder();
+  }, []);
+
   return {
     items,
     isScanning,
@@ -107,10 +183,22 @@ export function useVirtualize() {
     status,
     config,
     scan,
+    scanFolder,
+    selectFolder,
     push,
     pull,
     cancel,
     loadStatus,
     saveConfig,
+    // Watch
+    watchFolders,
+    watchEvents,
+    loadWatchFolders,
+    loadWatchEvents,
+    addWatchFolder,
+    removeWatchFolder,
+    toggleWatchFolder,
+    clearWatchEvents,
+    selectWatchFolder,
   };
 }

@@ -265,6 +265,28 @@ const translations = {
   'virt.empty.pushHint': { en: 'Adjust the threshold and scan to find files', zh: '調整閾值並掃描以尋找檔案' },
   'virt.empty.pull': { en: 'No virtualized files found', zh: '未找到已虛擬化的檔案' },
   'virt.empty.pullHint': { en: 'Push files to cloud first, then restore them here', zh: '先推送檔案至雲端，然後在此還原' },
+  // Folder mode
+  'virt.browseFolder': { en: 'Browse Folder', zh: '瀏覽資料夾' },
+  'virt.folderScan': { en: 'Scan Folder', zh: '掃描資料夾' },
+  'virt.allDrives': { en: 'All Drives', zh: '所有磁碟' },
+  'virt.folder': { en: 'Folder', zh: '資料夾' },
+
+  // Watch mode
+  'virt.watch.title': { en: 'Watch Folders', zh: '監控資料夾' },
+  'virt.watch.add': { en: 'Add Watch', zh: '新增監控' },
+  'virt.watch.empty': { en: 'No watch folders configured', zh: '尚未設定監控資料夾' },
+  'virt.watch.emptyHint': { en: 'Add folders to auto-virtualize new large files', zh: '新增資料夾以自動虛擬化大檔案' },
+  'virt.watch.remove': { en: 'Remove', zh: '移除' },
+  'virt.watch.removeConfirm': { en: 'Sure?', zh: '確定？' },
+  'virt.watch.threshold': { en: 'Threshold', zh: '門檻' },
+  'virt.watch.lastScan': { en: 'Last scan', zh: '上次掃描' },
+  'virt.watch.never': { en: 'Never', zh: '從未' },
+  'virt.watch.events': { en: 'Auto-Push Log', zh: '自動推送紀錄' },
+  'virt.watch.clearEvents': { en: 'Clear', zh: '清除' },
+  'virt.watch.noEvents': { en: 'No auto-push events', zh: '沒有自動推送紀錄' },
+  'virt.watch.pushed': { en: 'Pushed', zh: '已推送' },
+  'virt.watch.failed': { en: 'Failed', zh: '失敗' },
+
   'virt.phase.scanning': { en: 'Scanning', zh: '掃描中' },
   'virt.phase.hashing': { en: 'Hashing', zh: '計算雜湊' },
   'virt.phase.uploading': { en: 'Uploading', zh: '上傳中' },

@@ -14,6 +14,7 @@ import { StartupManager } from './services/startup-manager';
 import { EnvReader } from './services/env-reader';
 import { DiskCleaner } from './services/disk-cleaner';
 import { DiskVirtualizer } from './services/disk-virtualizer';
+import { RefileWatcher } from './services/refile-watcher';
 import { setupIpcHandlers } from './ipc-handlers';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
@@ -53,6 +54,7 @@ const startupManager = new StartupManager();
 const envReader = new EnvReader();
 const diskCleaner = new DiskCleaner();
 const diskVirtualizer = new DiskVirtualizer();
+const refileWatcher = new RefileWatcher(diskVirtualizer);
 
 function getPreloadPath(): string {
   // Forge Vite plugin provides the correct path at build time
@@ -132,6 +134,7 @@ async function initialize(): Promise<void> {
     envReader,
     diskCleaner,
     diskVirtualizer,
+    refileWatcher,
     getMainWindow: () => mainWindow,
   });
 
@@ -143,6 +146,7 @@ async function initialize(): Promise<void> {
   portScanner.start();
   devServerManager.start();
   optimizer.start();
+  refileWatcher.start();
 
   await createWindow();
 }
@@ -159,6 +163,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   // Stop notification sources first to prevent burst during shutdown
+  refileWatcher.stop();
   processGuardian.stop();
   devServerManager.stop();
   optimizer.stop();

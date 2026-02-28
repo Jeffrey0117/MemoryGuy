@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, shell, clipboard } from 'electron';
+import { ipcMain, BrowserWindow, shell, clipboard, dialog } from 'electron';
 import { IPC, DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX } from '@shared/constants';
 import type { SystemMonitor } from './services/system-monitor';
 import type { ProcessMonitor } from './services/process-monitor';
@@ -13,9 +13,10 @@ import type { StartupManager } from './services/startup-manager';
 import type { EnvReader } from './services/env-reader';
 import type { DiskCleaner } from './services/disk-cleaner';
 import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
+import type { RefileWatcher } from './services/refile-watcher';
 import { killByPid } from './services/process-killer';
 import { isRefilePath } from './services/refile/refile-format';
-import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress } from '@shared/types';
+import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress, WatchEvent } from '@shared/types';
 
 interface Deps {
   systemMonitor: SystemMonitor;
@@ -31,6 +32,7 @@ interface Deps {
   envReader: EnvReader;
   diskCleaner: DiskCleaner;
   diskVirtualizer: DiskVirtualizer;
+  refileWatcher: RefileWatcher;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -38,7 +40,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileWatcher, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -332,6 +334,25 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     return diskVirtualizer.scan({ thresholdBytes });
   });
 
+  ipcMain.handle(IPC.VIRT_SCAN_FOLDER, async (_event, folderPath: unknown, thresholdBytes: unknown) => {
+    if (typeof folderPath !== 'string' || folderPath.length === 0 || folderPath.length > 2048) {
+      return { items: [], totalSize: 0, scanDurationMs: 0 };
+    }
+    if (typeof thresholdBytes !== 'number' || thresholdBytes < 1_048_576 || thresholdBytes > 10_737_418_240) {
+      return { items: [], totalSize: 0, scanDurationMs: 0 };
+    }
+    return diskVirtualizer.scanFolder(folderPath, thresholdBytes);
+  });
+
+  ipcMain.handle(IPC.VIRT_SELECT_FOLDER, async () => {
+    const win = getMainWindow();
+    if (!win || win.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+    });
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+
   ipcMain.handle(IPC.VIRT_PUSH, async (_event, filePaths: unknown) => {
     if (!Array.isArray(filePaths) || filePaths.length === 0 || filePaths.length > 500) {
       return { pushed: 0, failed: 0, freedBytes: 0, errors: ['Invalid file paths'] };
@@ -372,6 +393,51 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.ON_VIRT_PROGRESS, progress);
+    }
+  });
+
+  // --- Watch folders ---
+  ipcMain.handle(IPC.VIRT_GET_WATCH_FOLDERS, () => {
+    return refileWatcher.getFolders();
+  });
+
+  ipcMain.handle(IPC.VIRT_ADD_WATCH_FOLDER, (_event, folderPath: unknown, thresholdBytes: unknown) => {
+    if (typeof folderPath !== 'string' || folderPath.length === 0 || folderPath.length > 2048) return null;
+    if (typeof thresholdBytes !== 'number' || thresholdBytes < 1_048_576) return null;
+    return refileWatcher.addFolder(folderPath, thresholdBytes);
+  });
+
+  ipcMain.handle(IPC.VIRT_REMOVE_WATCH_FOLDER, (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) return;
+    refileWatcher.removeFolder(id);
+  });
+
+  ipcMain.handle(IPC.VIRT_TOGGLE_WATCH_FOLDER, (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0) return;
+    refileWatcher.toggleFolder(id);
+  });
+
+  ipcMain.handle(IPC.VIRT_GET_WATCH_EVENTS, () => {
+    return refileWatcher.getEvents();
+  });
+
+  ipcMain.handle(IPC.VIRT_CLEAR_WATCH_EVENTS, () => {
+    refileWatcher.clearEvents();
+  });
+
+  ipcMain.handle(IPC.VIRT_SELECT_WATCH_FOLDER, async () => {
+    const win = getMainWindow();
+    if (!win || win.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+    });
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+
+  refileWatcher.on('watch-event', (event: WatchEvent) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_VIRT_WATCH_EVENT, event);
     }
   });
 

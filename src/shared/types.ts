@@ -271,6 +271,24 @@ export interface VirtConfig {
   }>>
 }
 
+// --- Watch folders (auto-virtualize) ---
+
+export interface WatchFolder {
+  readonly id: string
+  readonly path: string
+  readonly thresholdBytes: number
+  readonly enabled: boolean
+  readonly lastScanAt: number
+}
+
+export interface WatchEvent {
+  readonly timestamp: number
+  readonly filePath: string
+  readonly size: number
+  readonly action: 'pushed' | 'failed'
+  readonly error?: string
+}
+
 // --- API exposed to renderer ---
 
 export interface MemoryGuyAPI {
@@ -331,6 +349,8 @@ export interface MemoryGuyAPI {
 
   // Disk virtualization
   virtScan: (thresholdBytes: number) => Promise<VirtScanResult>
+  virtScanFolder: (folderPath: string, thresholdBytes: number) => Promise<VirtScanResult>
+  virtSelectFolder: () => Promise<string | null>
   virtPush: (filePaths: string[]) => Promise<VirtPushResult>
   virtPull: (refilePaths: string[]) => Promise<VirtPullResult>
   virtStatus: () => Promise<VirtStatusResult>
@@ -338,6 +358,16 @@ export interface MemoryGuyAPI {
   virtConfigLoad: () => Promise<VirtConfig | null>
   virtConfigSave: (config: VirtConfig) => Promise<void>
   onVirtProgress: (callback: (progress: VirtProgress) => void) => () => void
+
+  // Watch folders
+  virtGetWatchFolders: () => Promise<WatchFolder[]>
+  virtAddWatchFolder: (path: string, thresholdBytes: number) => Promise<WatchFolder>
+  virtRemoveWatchFolder: (id: string) => Promise<void>
+  virtToggleWatchFolder: (id: string) => Promise<void>
+  virtGetWatchEvents: () => Promise<WatchEvent[]>
+  virtClearWatchEvents: () => Promise<void>
+  virtSelectWatchFolder: () => Promise<string | null>
+  onVirtWatchEvent: (callback: (event: WatchEvent) => void) => () => void
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

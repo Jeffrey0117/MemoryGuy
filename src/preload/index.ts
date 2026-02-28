@@ -93,6 +93,8 @@ contextBridge.exposeInMainWorld('memoryGuy', {
 
   // Disk virtualization
   virtScan: (thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_SCAN, thresholdBytes),
+  virtScanFolder: (folderPath: string, thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_SCAN_FOLDER, folderPath, thresholdBytes),
+  virtSelectFolder: () => ipcRenderer.invoke(IPC.VIRT_SELECT_FOLDER),
   virtPush: (filePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PUSH, filePaths),
   virtPull: (refilePaths: string[]) => ipcRenderer.invoke(IPC.VIRT_PULL, refilePaths),
   virtStatus: () => ipcRenderer.invoke(IPC.VIRT_STATUS),
@@ -103,6 +105,20 @@ contextBridge.exposeInMainWorld('memoryGuy', {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_VIRT_PROGRESS, handler);
     return () => { ipcRenderer.removeListener(IPC.ON_VIRT_PROGRESS, handler); };
+  },
+
+  // Watch folders
+  virtGetWatchFolders: () => ipcRenderer.invoke(IPC.VIRT_GET_WATCH_FOLDERS),
+  virtAddWatchFolder: (path: string, thresholdBytes: number) => ipcRenderer.invoke(IPC.VIRT_ADD_WATCH_FOLDER, path, thresholdBytes),
+  virtRemoveWatchFolder: (id: string) => ipcRenderer.invoke(IPC.VIRT_REMOVE_WATCH_FOLDER, id),
+  virtToggleWatchFolder: (id: string) => ipcRenderer.invoke(IPC.VIRT_TOGGLE_WATCH_FOLDER, id),
+  virtGetWatchEvents: () => ipcRenderer.invoke(IPC.VIRT_GET_WATCH_EVENTS),
+  virtClearWatchEvents: () => ipcRenderer.invoke(IPC.VIRT_CLEAR_WATCH_EVENTS),
+  virtSelectWatchFolder: () => ipcRenderer.invoke(IPC.VIRT_SELECT_WATCH_FOLDER),
+  onVirtWatchEvent: (callback: (event: unknown) => void) => {
+    const handler = (_: unknown, data: unknown) => callback(data);
+    ipcRenderer.on(IPC.ON_VIRT_WATCH_EVENT, handler);
+    return () => { ipcRenderer.removeListener(IPC.ON_VIRT_WATCH_EVENT, handler); };
   },
 
   onProcessTerminated: (callback: (event: unknown) => void) => {

@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useVirtualize } from '../hooks/useVirtualize';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
-import type { VirtScanItem, VirtConfig } from '@shared/types';
+import type { VirtScanItem, VirtConfig, WatchFolder } from '@shared/types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -248,26 +248,192 @@ function ConfigPanel({
   );
 }
 
+type ScanScope = 'all' | 'folder';
+
+function WatchPanel({
+  locale,
+  watchFolders,
+  watchEvents,
+  onAddFolder,
+  onRemoveFolder,
+  onToggleFolder,
+  onClearEvents,
+  onSelectFolder,
+}: {
+  locale: 'en' | 'zh';
+  watchFolders: readonly WatchFolder[];
+  watchEvents: readonly { timestamp: number; filePath: string; size: number; action: 'pushed' | 'failed'; error?: string }[];
+  onAddFolder: (path: string, threshold: number) => void;
+  onRemoveFolder: (id: string) => void;
+  onToggleFolder: (id: string) => void;
+  onClearEvents: () => void;
+  onSelectFolder: () => Promise<string | null>;
+}) {
+  const [addThresholdIdx, setAddThresholdIdx] = useState(2);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const handleAdd = async () => {
+    const folder = await onSelectFolder();
+    if (folder) {
+      onAddFolder(folder, THRESHOLD_STEPS[addThresholdIdx]);
+    }
+  };
+
+  const handleRemove = (id: string) => {
+    if (confirmingId !== id) {
+      setConfirmingId(id);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setConfirmingId(null), 3000);
+      return;
+    }
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setConfirmingId(null);
+    onRemoveFolder(id);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Add watch folder toolbar */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleAdd}
+          className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 transition-opacity"
+        >
+          {t('virt.watch.add', locale)}
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-mg-muted">{t('virt.watch.threshold', locale)}:</span>
+          <input
+            type="range"
+            min={0}
+            max={THRESHOLD_STEPS.length - 1}
+            value={addThresholdIdx}
+            onChange={(e) => setAddThresholdIdx(Number(e.target.value))}
+            className="w-24 accent-mg-primary"
+          />
+          <span className="text-xs text-mg-text font-mono w-16">{formatBytes(THRESHOLD_STEPS[addThresholdIdx])}</span>
+        </div>
+      </div>
+
+      {/* Watch folder list */}
+      {watchFolders.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-mg-muted text-sm">{t('virt.watch.empty', locale)}</div>
+          <div className="text-mg-muted/60 text-xs mt-1">{t('virt.watch.emptyHint', locale)}</div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20">
+          {watchFolders.map((f) => (
+            <div key={f.id} className="flex items-center gap-3 px-4 py-3 hover:bg-mg-card/30 transition-colors">
+              {/* Toggle */}
+              <button
+                onClick={() => onToggleFolder(f.id)}
+                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                  f.enabled ? 'bg-mg-primary' : 'bg-mg-border'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                  f.enabled ? 'left-5' : 'left-0.5'
+                }`} />
+              </button>
+
+              {/* Path */}
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm truncate ${f.enabled ? 'text-mg-text' : 'text-mg-muted'}`} title={f.path}>
+                  {f.path}
+                </div>
+                <div className="text-xs text-mg-muted">
+                  {t('virt.watch.threshold', locale)}: {formatBytes(f.thresholdBytes)}
+                  {' — '}
+                  {t('virt.watch.lastScan', locale)}: {f.lastScanAt ? new Date(f.lastScanAt).toLocaleString() : t('virt.watch.never', locale)}
+                </div>
+              </div>
+
+              {/* Remove */}
+              <button
+                onClick={() => handleRemove(f.id)}
+                className={`text-xs px-2.5 py-1 rounded transition-colors flex-shrink-0 ${
+                  confirmingId === f.id
+                    ? 'bg-red-600 text-white hover:bg-red-500'
+                    : 'bg-mg-border/50 text-mg-muted hover:text-mg-text hover:bg-mg-border'
+                }`}
+              >
+                {confirmingId === f.id ? t('virt.watch.removeConfirm', locale) : t('virt.watch.remove', locale)}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Watch event log */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-mg-text">{t('virt.watch.events', locale)}</h3>
+          {watchEvents.length > 0 && (
+            <button
+              onClick={onClearEvents}
+              className="text-xs text-mg-muted hover:text-mg-text transition-colors"
+            >
+              {t('virt.watch.clearEvents', locale)}
+            </button>
+          )}
+        </div>
+        {watchEvents.length === 0 ? (
+          <div className="text-xs text-mg-muted py-4 text-center">{t('virt.watch.noEvents', locale)}</div>
+        ) : (
+          <div className="rounded-lg border border-mg-border/40 divide-y divide-mg-border/20 max-h-[300px] overflow-y-auto">
+            {[...watchEvents].reverse().map((e, i) => (
+              <div key={i} className="flex items-center gap-2 px-4 py-2 text-xs">
+                <span className={`px-1.5 py-0.5 rounded ${
+                  e.action === 'pushed' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {e.action === 'pushed' ? t('virt.watch.pushed', locale) : t('virt.watch.failed', locale)}
+                </span>
+                <span className="text-mg-muted truncate flex-1" title={e.filePath}>{e.filePath.split('\\').pop()}</span>
+                <span className="text-mg-muted font-mono flex-shrink-0">{formatBytes(e.size)}</span>
+                <span className="text-mg-muted/60 flex-shrink-0">{new Date(e.timestamp).toLocaleTimeString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function DiskVirtualize() {
   const {
     items, isScanning, isPushing, isPulling, scanDurationMs, progress,
     pushResult, pullResult, status, config,
-    scan, push, pull, cancel, loadStatus, saveConfig,
+    scan, scanFolder, selectFolder, push, pull, cancel, loadStatus, saveConfig,
+    watchFolders, watchEvents,
+    loadWatchFolders, loadWatchEvents, addWatchFolder, removeWatchFolder, toggleWatchFolder, clearWatchEvents, selectWatchFolder,
   } = useVirtualize();
   const locale = useAppStore((s) => s.locale);
 
-  const [mode, setMode] = useState<'push' | 'pull'>('push');
+  const [mode, setMode] = useState<'push' | 'pull' | 'watch'>('push');
   const [thresholdIdx, setThresholdIdx] = useState(2); // 50MB default
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
+  const [scanScope, setScanScope] = useState<ScanScope>('all');
+  const [folderPath, setFolderPath] = useState<string | null>(null);
 
   // Load status when switching to pull mode
   useEffect(() => {
     if (mode === 'pull') {
       loadStatus();
     }
-  }, [mode, loadStatus]);
+    if (mode === 'watch') {
+      loadWatchFolders();
+      loadWatchEvents();
+    }
+  }, [mode, loadStatus, loadWatchFolders, loadWatchEvents]);
 
   const filteredItems = useMemo(() => {
     const byMode = items.filter((item) =>
@@ -303,7 +469,19 @@ export function DiskVirtualize() {
 
   const handleScan = async () => {
     setSelected(new Set());
-    await scan(THRESHOLD_STEPS[thresholdIdx]);
+    if (scanScope === 'folder' && folderPath) {
+      await scanFolder(folderPath, THRESHOLD_STEPS[thresholdIdx]);
+    } else {
+      await scan(THRESHOLD_STEPS[thresholdIdx]);
+    }
+  };
+
+  const handleBrowseFolder = async () => {
+    const path = await selectFolder();
+    if (path) {
+      setFolderPath(path);
+      setScanScope('folder');
+    }
   };
 
   const handlePush = async () => {
@@ -339,40 +517,71 @@ export function DiskVirtualize() {
     <div className="space-y-4">
       {/* Mode toggle */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => { setMode('push'); setSelected(new Set()); }}
-          className={`px-4 py-1.5 text-sm rounded transition-colors ${
-            mode === 'push'
-              ? 'bg-mg-primary text-white'
-              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-          }`}
-        >
-          {t('virt.mode.push', locale)}
-        </button>
-        <button
-          onClick={() => { setMode('pull'); setSelected(new Set()); }}
-          className={`px-4 py-1.5 text-sm rounded transition-colors ${
-            mode === 'pull'
-              ? 'bg-mg-primary text-white'
-              : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-          }`}
-        >
-          {t('virt.mode.pull', locale)}
-        </button>
-        <div className="flex-1" />
-        <button
-          onClick={() => setMode(mode === 'push' ? 'pull' : 'push')}
-          className="text-xs text-mg-muted hover:text-mg-text"
-          title={t('virt.config.title', locale)}
-        >
-          {t('virt.config.title', locale)}
-        </button>
+        {(['push', 'pull', 'watch'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => { setMode(m); setSelected(new Set()); }}
+            className={`px-4 py-1.5 text-sm rounded transition-colors ${
+              mode === m
+                ? 'bg-mg-primary text-white'
+                : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+            }`}
+          >
+            {m === 'push' ? t('virt.mode.push', locale) :
+             m === 'pull' ? t('virt.mode.pull', locale) :
+             t('virt.watch.title', locale)}
+          </button>
+        ))}
       </div>
+
+      {/* Watch mode */}
+      {mode === 'watch' && (
+        <WatchPanel
+          locale={locale}
+          watchFolders={watchFolders}
+          watchEvents={watchEvents}
+          onAddFolder={addWatchFolder}
+          onRemoveFolder={removeWatchFolder}
+          onToggleFolder={toggleWatchFolder}
+          onClearEvents={clearWatchEvents}
+          onSelectFolder={selectWatchFolder}
+        />
+      )}
 
       {/* Push mode: scan toolbar */}
       {mode === 'push' && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Scope toggle: All Drives vs Folder */}
+            <div className="flex gap-1">
+              <button
+                onClick={() => { setScanScope('all'); setFolderPath(null); }}
+                className={`px-3 py-1 text-xs rounded transition-colors ${
+                  scanScope === 'all'
+                    ? 'bg-mg-primary/20 text-mg-primary'
+                    : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+                }`}
+              >
+                {t('virt.allDrives', locale)}
+              </button>
+              <button
+                onClick={handleBrowseFolder}
+                className={`px-3 py-1 text-xs rounded transition-colors ${
+                  scanScope === 'folder'
+                    ? 'bg-mg-primary/20 text-mg-primary'
+                    : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
+                }`}
+              >
+                {t('virt.browseFolder', locale)}
+              </button>
+            </div>
+
+            {scanScope === 'folder' && folderPath && (
+              <span className="text-xs text-mg-muted truncate max-w-[200px]" title={folderPath}>
+                {folderPath}
+              </span>
+            )}
+
             <div className="flex items-center gap-2">
               <span className="text-xs text-mg-muted">{t('virt.threshold', locale)}:</span>
               <input
@@ -483,7 +692,7 @@ export function DiskVirtualize() {
       )}
 
       {/* Empty state */}
-      {!isScanning && filteredItems.length === 0 && items.length === 0 && (
+      {mode !== 'watch' && !isScanning && filteredItems.length === 0 && items.length === 0 && (
         <div className="text-center py-16">
           <div className="text-mg-muted text-sm">
             {mode === 'push' ? t('virt.empty.push', locale) : t('virt.empty.pull', locale)}
@@ -495,7 +704,7 @@ export function DiskVirtualize() {
       )}
 
       {/* File list */}
-      {filteredItems.length > 0 && (
+      {mode !== 'watch' && filteredItems.length > 0 && (
         <div className="rounded-lg border border-mg-border/40 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-2.5 bg-mg-card/40">
@@ -527,7 +736,7 @@ export function DiskVirtualize() {
       )}
 
       {/* Footer: selection + action */}
-      {filteredItems.length > 0 && (
+      {mode !== 'watch' && filteredItems.length > 0 && (
         <div className="flex items-center justify-between border-t border-mg-border/40 pt-4">
           <span className="text-sm text-mg-muted">
             {t('virt.selected', locale)}: {selected.size} ({formatBytes(selectedTotal)})

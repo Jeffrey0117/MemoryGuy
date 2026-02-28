@@ -60,6 +60,8 @@ export const IPC = {
 
   // Disk virtualization
   VIRT_SCAN: 'virt-scan',
+  VIRT_SCAN_FOLDER: 'virt-scan-folder',
+  VIRT_SELECT_FOLDER: 'virt-select-folder',
   VIRT_PUSH: 'virt-push',
   VIRT_PULL: 'virt-pull',
   VIRT_STATUS: 'virt-status',
@@ -67,6 +69,16 @@ export const IPC = {
   VIRT_CONFIG_LOAD: 'virt-config-load',
   VIRT_CONFIG_SAVE: 'virt-config-save',
   ON_VIRT_PROGRESS: 'on-virt-progress',
+
+  // Watch folders
+  VIRT_GET_WATCH_FOLDERS: 'virt-get-watch-folders',
+  VIRT_ADD_WATCH_FOLDER: 'virt-add-watch-folder',
+  VIRT_REMOVE_WATCH_FOLDER: 'virt-remove-watch-folder',
+  VIRT_TOGGLE_WATCH_FOLDER: 'virt-toggle-watch-folder',
+  VIRT_GET_WATCH_EVENTS: 'virt-get-watch-events',
+  VIRT_CLEAR_WATCH_EVENTS: 'virt-clear-watch-events',
+  VIRT_SELECT_WATCH_FOLDER: 'virt-select-watch-folder',
+  ON_VIRT_WATCH_EVENT: 'on-virt-watch-event',
 
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',

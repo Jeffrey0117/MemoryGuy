@@ -113,6 +113,105 @@ export class DiskVirtualizer extends EventEmitter {
     fs.writeFileSync(this.getConfigPath(), JSON.stringify(validated, null, 2), 'utf-8')
   }
 
+  async scanFolder(folderPath: string, thresholdBytes: number): Promise<VirtScanResult> {
+    const threshold = Math.max(thresholdBytes, MIN_SIZE_BYTES)
+    const resolved = path.resolve(folderPath)
+    if (isSystemPath(resolved)) {
+      return { items: [], totalSize: 0, scanDurationMs: 0 }
+    }
+
+    const startTime = Date.now()
+    this.abortController = new AbortController()
+    const { signal } = this.abortController
+
+    const items: VirtScanItem[] = []
+    let scannedBytes = 0
+
+    try {
+      // Scan for large files in folder
+      const scanScript = `Get-ChildItem -Path '${psEscape(resolved)}' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -ge ${threshold} -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::Hidden) -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::System) } | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
+
+      const output = await runPs(scanScript)
+      if (!signal.aborted && output.trim()) {
+        const parsed = output.trim()
+        const rawItems = JSON.parse(parsed.startsWith('[') ? parsed : `[${parsed}]`) as {
+          FullName: string
+          Length: number
+          LastWriteTime: string
+        }[]
+
+        for (const raw of rawItems) {
+          if (signal.aborted) break
+          if (isSystemPath(raw.FullName)) continue
+
+          const mimeType = lookup(raw.FullName) || 'application/octet-stream'
+          items.push({
+            path: raw.FullName,
+            size: raw.Length,
+            mime: mimeType,
+            mtime: new Date(raw.LastWriteTime).getTime(),
+            isVirtualized: false,
+          })
+          scannedBytes += raw.Length
+
+          this.emit('virt-progress', {
+            phase: 'scanning',
+            current: items.length,
+            total: 0,
+            currentFile: raw.FullName,
+            bytesProcessed: scannedBytes,
+          } satisfies VirtProgress)
+        }
+      }
+
+      // Also scan for existing pointer files in folder
+      if (!signal.aborted) {
+        const extFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
+        const refileScanScript = `Get-ChildItem -Path '${psEscape(resolved)}' -Recurse -File -Include ${extFilter} -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
+
+        try {
+          const refileOutput = await runPs(refileScanScript)
+          if (!signal.aborted && refileOutput.trim()) {
+            const rawRefiles = JSON.parse(refileOutput.trim().startsWith('[') ? refileOutput.trim() : `[${refileOutput.trim()}]`) as {
+              FullName: string
+              Length: number
+              LastWriteTime: string
+            }[]
+
+            for (const raw of rawRefiles) {
+              if (signal.aborted) break
+              if (isSystemPath(raw.FullName)) continue
+              const pointer = readRefilePointer(raw.FullName)
+              if (pointer) {
+                items.push({
+                  path: raw.FullName,
+                  size: pointer.size,
+                  mime: pointer.mime,
+                  mtime: new Date(raw.LastWriteTime).getTime(),
+                  isVirtualized: true,
+                })
+              }
+            }
+          }
+        } catch {
+          // Skip errors
+        }
+      }
+    } catch {
+      // Scan failed
+    } finally {
+      this.abortController = null
+    }
+
+    items.sort((a, b) => b.size - a.size)
+
+    return {
+      items,
+      totalSize: items.reduce((sum, i) => sum + i.size, 0),
+      scanDurationMs: Date.now() - startTime,
+    }
+  }
+
   async scan(options: { thresholdBytes: number }): Promise<VirtScanResult> {
     const threshold = Math.max(options.thresholdBytes, MIN_SIZE_BYTES)
     const startTime = Date.now()

@@ -5,3 +5,7 @@ dist/
 *.log
 .env
 .env.*
+
+# Installer
+installer/MemoryGuy-Setup.exe
+installer/companions/*.exe

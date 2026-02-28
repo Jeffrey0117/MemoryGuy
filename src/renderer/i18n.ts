@@ -296,6 +296,14 @@ const translations = {
   'virt.overview.scanFolders': { en: 'Scan Folders', zh: '掃描資料夾' },
   'virt.overview.rebuild': { en: 'Rebuild Registry', zh: '重建索引' },
   'virt.overview.empty': { en: 'No virtualized files', zh: '尚無虛擬化檔案' },
+  'virt.overview.emptyHint': {
+    en: 'Virtualize files from the Folder Browser tab — they will appear here',
+    zh: '從「資料夾瀏覽」虛擬化檔案後，會顯示在此',
+  },
+  'virt.overview.viewerHint': {
+    en: 'Install REPIC / REVID to double-click open .repic .revid directly:',
+    zh: '裝了 REPIC / REVID，雙擊 .repic .revid 就能直接看：',
+  },
   'virt.overview.scanResult': { en: 'Scan complete: {added} added, {migrated} migrated', zh: '掃描完成：新增 {added}，遷移 {migrated}' },
   // Progress phases
   'virt.phase.scanning': { en: 'Scanning', zh: '掃描中' },

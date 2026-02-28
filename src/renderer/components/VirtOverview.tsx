@@ -174,8 +174,9 @@ export function VirtOverview({
 
       {/* Empty state */}
       {!isLoading && entries.length === 0 && (
-        <div className="text-center py-16">
+        <div className="text-center py-16 space-y-2">
           <div className="text-mg-muted text-sm">{t('virt.overview.empty', locale)}</div>
+          <div className="text-mg-muted/60 text-xs">{t('virt.overview.emptyHint', locale)}</div>
         </div>
       )}
 
@@ -271,6 +272,29 @@ export function VirtOverview({
           >
             {isPulling ? t('virt.restoring', locale) : t('virt.batchRestore', locale)} ({selected.size})
           </button>
+        </div>
+      )}
+
+      {/* Companion viewer links */}
+      {entries.length > 0 && (
+        <div className="flex items-center gap-3 text-[11px] text-mg-muted/60 pt-2">
+          <span>{t('virt.overview.viewerHint', locale)}</span>
+          <a
+            href="https://github.com/Jeffrey0117/REPIC"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-mg-primary/70 hover:text-mg-primary transition-colors"
+          >
+            REPIC (.repic)
+          </a>
+          <a
+            href="https://github.com/Jeffrey0117/REVID"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-mg-primary/70 hover:text-mg-primary transition-colors"
+          >
+            REVID (.revid)
+          </a>
         </div>
       )}
     </div>

@@ -75,6 +75,36 @@ Hook:      BLOCKED. Command targets a protected process.
 
 Your AI assistant can't accidentally kill your services. It works with Claude Code, ClaudeBot, or any tool that uses Claude Code hooks.
 
+### Disk Virtualization
+
+Replace large local files with tiny cloud-backed pointer files. Free disk space instantly — restore anytime.
+
+| Extension | Content | Description |
+|-----------|---------|-------------|
+| `.repic` | Images | `image/*` MIME types |
+| `.revid` | Videos | `video/*` MIME types |
+| `.remusic` | Audio | `audio/*` MIME types |
+| `.refile` | Other | Everything else |
+
+Pointer files are small JSON (~200 bytes) containing the cloud URL, SHA-256 hash, original filename, and metadata.
+
+**Overview tab** shows all virtualized files across folders with stats, MIME filtering, and batch restore.
+
+### Companion Viewers — REPIC & REVID
+
+After virtualizing, your files become `.repic` / `.revid` pointer files. Double-clicking them normally does nothing — they're just JSON.
+
+**REPIC** and **REVID** are lightweight viewers built specifically for MemoryGuy. Install them once, and every `.repic` / `.revid` file becomes double-clickable — the viewer reads the pointer, streams the original from the cloud, and displays it instantly. No restore needed.
+
+| Tool | What it does | Get it |
+|------|-------------|--------|
+| [**REPIC**](https://github.com/Jeffrey0117/REPIC) | Double-click `.repic` → see the image | [Download](https://github.com/Jeffrey0117/REPIC/releases/latest) |
+| [**REVID**](https://github.com/Jeffrey0117/REVID) | Double-click `.revid` → play the video | [Download](https://github.com/Jeffrey0117/REVID/releases/latest) |
+
+> **Easiest way:** Use the [NSIS installer](#nsis-installer-with-companion-tool-checkboxes) — it bundles REPIC and REVID as checkboxes so everything installs together.
+>
+> For `.remusic` and `.refile` — no viewer yet. Use MemoryGuy's **Overview** tab to batch restore them back to the originals.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -98,6 +128,32 @@ npm start
 
 Requires: Node.js 18+, Windows 10/11, PowerShell 5.1+
 
+## Building
+
+### Default (Squirrel)
+
+```bash
+npm run package        # Package app → out/MemoryGuy-win32-x64/
+npm run make           # Build Squirrel.Windows installer
+```
+
+### NSIS Installer (with companion tool checkboxes)
+
+The NSIS build creates an installer with optional checkboxes for REPIC and REVID:
+
+1. Install [NSIS 3.x](https://nsis.sourceforge.io/Download) (or `choco install nsis`)
+2. Package the app: `npm run package`
+3. (Optional) Place companion installers in `installer/companions/`:
+   - `REPIC-Setup.exe` — from [REPIC Releases](https://github.com/Jeffrey0117/REPIC/releases/latest)
+   - `REVID-Setup.exe` — from [REVID Releases](https://github.com/Jeffrey0117/REVID/releases/latest)
+4. Run: `installer\build.bat`
+5. Output: `installer/MemoryGuy-Setup.exe`
+
+The installer shows three components:
+- **MemoryGuy** (required)
+- **REPIC Image Viewer** (optional, checked by default)
+- **REVID Video Player** (optional, checked by default)
+
 ---
 
 ## Ecosystem
@@ -111,6 +167,8 @@ MemoryGuy is the safety net for a developer toolkit that covers your entire work
 | [**ClaudeBot**](https://github.com/Jeffrey0117/ClaudeBot) | Write code from your phone via AI. Voice-to-code, live streaming | Telegram bot |
 | [**CloudPipe**](https://github.com/Jeffrey0117/CloudPipe) | Self-hosted Vercel. Auto-deploys, Telegram control, 31+ MCP tools | `npm i -g @jeffrey0117/cloudpipe` |
 | **MemoryGuy** | Memory guardian, dev server dashboard, AI safety hooks | *you are here* |
+| [**REPIC**](https://github.com/Jeffrey0117/REPIC) | Double-click `.repic` to view images — streams from cloud, no restore needed | MemoryGuy companion |
+| [**REVID**](https://github.com/Jeffrey0117/REVID) | Double-click `.revid` to play videos — streams from cloud, no restore needed | MemoryGuy companion |
 
 **The full loop:** DevUp sets up your machine → ClaudeBot writes code from your phone → CloudPipe auto-deploys → MemoryGuy keeps it all running and prevents AI from breaking things.
 

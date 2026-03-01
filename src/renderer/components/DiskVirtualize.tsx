@@ -46,10 +46,10 @@ function ConfigPanel({
   );
 
   const [shEndpoint, setShEndpoint] = useState(
-    current?.type === 'self-hosted' ? current.endpoint : 'https://refile.isnowfriend.com'
+    current?.type === 'self-hosted' ? current.endpoint : 'https://pokkit.isnowfriend.com'
   );
   const [shApiKey, setShApiKey] = useState(
-    current?.type === 'self-hosted' ? (current.apiKey ?? '') : 'refile-prod-key-2026'
+    current?.type === 'self-hosted' ? (current.apiKey ?? '') : ''
   );
 
   const [endpoint, setEndpoint] = useState(
@@ -143,7 +143,7 @@ function ConfigPanel({
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
               <input type="text" value={shEndpoint} onChange={(e) => setShEndpoint(e.target.value)}
-                placeholder="https://refile.isnowfriend.com" className={inputCls} />
+                placeholder="https://pokkit.isnowfriend.com" className={inputCls} />
             </label>
             <label className="block">
               <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>

@@ -278,7 +278,7 @@ const translations = {
   'virt.config.general': { en: 'General', zh: '通用' },
   'virt.config.apiKey': { en: 'API Key', zh: 'API 金鑰' },
   'virt.config.routingHint': { en: 'Tip: duky=video, dukic=audio, dukbox=any file type', zh: '提示：duky=影片、dukic=音訊、dukbox=所有檔案類型' },
-  'virt.config.selfHostedHint': { en: 'Self-hosted refile server — POST /upload, GET file URL, HEAD verify', zh: '自架 refile 伺服器 — POST /upload 上傳、GET 檔案 URL、HEAD 驗證' },
+  'virt.config.selfHostedHint': { en: 'Pokkit server — POST /upload, GET file URL, HEAD verify', zh: 'Pokkit 伺服器 — POST /upload 上傳、GET 檔案 URL、HEAD 驗證' },
   // Empty / no config
   'virt.noConfig': { en: 'No backend configured', zh: '尚未設定後端' },
   'virt.noConfigHint': { en: 'Configure a storage backend to start virtualizing files', zh: '設定儲存後端以開始虛擬化檔案' },
@@ -310,6 +310,53 @@ const translations = {
   'virt.phase.hashing': { en: 'Hashing', zh: '計算雜湊' },
   'virt.phase.uploading': { en: 'Uploading', zh: '上傳中' },
   'virt.phase.downloading': { en: 'Downloading', zh: '下載中' },
+  // Hardware Health
+  'hw.title': { en: 'Hardware Health', zh: '硬體健檢' },
+  'hw.score.overall': { en: 'Overall', zh: '綜合性能' },
+  'hw.score.cpu': { en: 'CPU', zh: 'CPU' },
+  'hw.score.ram': { en: 'RAM', zh: '記憶體' },
+  'hw.score.disk': { en: 'Storage', zh: '儲存' },
+  'hw.score.gpu': { en: 'GPU', zh: '顯示卡' },
+  'hw.pr': { en: 'PR {value}', zh: 'PR {value}' },
+  'hw.loading': { en: 'Collecting hardware info...', zh: '收集硬體資訊...' },
+  'hw.check': { en: 'Check', zh: '健檢' },
+  'hw.placeholder': { en: 'Click "Check" to analyze hardware', zh: '點擊「健檢」開始分析硬體' },
+  'hw.advice.ramSlotFree': {
+    en: '{free} free RAM slot(s) — adding memory is the best value upgrade',
+    zh: '還有 {free} 個空插槽，加記憶體是最划算的升級',
+  },
+  'hw.advice.ramSlotFull': {
+    en: 'All RAM slots full — upgrade requires higher-capacity modules',
+    zh: '記憶體插槽已滿載，升級需更換更大容量的模組',
+  },
+  'hw.advice.ramSoldered': {
+    en: 'RAM is soldered (LPDDR) — cannot be upgraded after purchase',
+    zh: '記憶體是焊死的（LPDDR），無法事後升級',
+  },
+  'hw.advice.hddSystem': {
+    en: 'System drive is HDD — switching to SSD gives the biggest perceived improvement',
+    zh: '系統碟是 HDD，換 SSD 體感差最大',
+  },
+  'hw.advice.cpuWeak': {
+    en: '{cores}-core CPU struggles with multitasking — upgrading CPU has high payoff',
+    zh: '{cores} 核跑多工偏吃力，升級 CPU 效益高',
+  },
+  'hw.advice.nvmeUpgrade': {
+    en: 'Currently SATA SSD — NVMe upgrade is 3-5x faster read/write',
+    zh: '目前是 SATA SSD，升級 NVMe 讀寫快 3-5 倍',
+  },
+  'hw.advice.ramLow': {
+    en: '{gb}GB is low — 16GB is the minimum for development',
+    zh: '{gb}GB 偏少，16GB 是開發的基本門檻',
+  },
+  'hw.advice.gpuIntegrated': {
+    en: 'Integrated GPU shares system RAM — a discrete GPU frees memory for apps',
+    zh: '內顯會吃共用記憶體，獨顯能釋放 RAM 給應用程式',
+  },
+  'hw.advice.allGood': {
+    en: 'Well-balanced setup — no upgrades needed for now',
+    zh: '配置均衡，暫時不需要升級',
+  },
 } as const;
 
 type TranslationKey = keyof typeof translations;

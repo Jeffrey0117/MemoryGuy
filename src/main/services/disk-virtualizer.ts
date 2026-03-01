@@ -9,7 +9,7 @@ import { createBackend } from './refile/backends/registry'
 import { createRefilePointer, readRefilePointer, writeRefilePointer, getRefilePath, isRefilePath, getOriginalPath, getOriginalPathFromPointer, EXTENSIONS } from './refile/refile-format'
 import { hashFile, verifyHash } from './refile/hasher'
 import { getFileMeta, restoreFileMeta } from './refile/file-meta'
-import { runPs, psEscape } from './powershell'
+import { getPlatform } from './platform'
 import type { VirtScanItem, VirtScanResult, VirtProgress, VirtPushResult, VirtPullResult, VirtStatusResult, VirtRegistryEntry } from '@shared/types'
 import type { RefileRegistry } from './refile/refile-registry'
 
@@ -19,38 +19,6 @@ const STATS_FILE = 'refile-stats.json'
 interface VirtStats {
   virtualizedFiles: number
   savedBytes: number
-}
-
-const EXCLUDED_DIR_NAMES = new Set([
-  'windows',
-  'program files',
-  'program files (x86)',
-  'programdata',
-  '$recycle.bin',
-  'system volume information',
-  'recovery',
-  '$windows.~bt',
-  '$windows.~ws',
-])
-
-function isSystemPath(filePath: string): boolean {
-  const resolved = path.resolve(filePath).toLowerCase()
-  const parts = resolved.split(path.sep)
-  // parts[0] = drive like "c:", parts[1] = first directory
-  const firstDir = parts[1] ?? ''
-  if (EXCLUDED_DIR_NAMES.has(firstDir)) return true
-  // Block known system prefixes on any drive
-  for (const prefix of ['windows', 'program files', 'program files (x86)', 'programdata']) {
-    if (resolved.includes(`${path.sep}${prefix}${path.sep}`) || resolved.endsWith(`${path.sep}${prefix}`)) {
-      return true
-    }
-  }
-  return false
-}
-
-// Validate drive letter is a single letter A-Z (defense-in-depth)
-function isValidDriveLetter(letter: string): boolean {
-  return /^[A-Za-z]$/.test(letter.trim())
 }
 
 const selfHostedSchema = z.object({
@@ -121,7 +89,8 @@ export class DiskVirtualizer extends EventEmitter {
 
   async scanFolder(folderPath: string, _thresholdBytes?: number): Promise<VirtScanResult> {
     const resolved = path.resolve(folderPath)
-    if (isSystemPath(resolved)) {
+    const { diskVirtOps } = getPlatform()
+    if (diskVirtOps.isSystemPath(resolved)) {
       return { items: [], totalSize: 0, scanDurationMs: 0 }
     }
 
@@ -147,7 +116,7 @@ export class DiskVirtualizer extends EventEmitter {
         if (signal.aborted) break
         const fullPath = path.join(resolved, name)
         if (fullPath.endsWith('.asar')) continue
-        if (isSystemPath(fullPath)) continue
+        if (diskVirtOps.isSystemPath(fullPath)) continue
 
         let stat: fs.Stats
         try {
@@ -240,59 +209,44 @@ export class DiskVirtualizer extends EventEmitter {
     const startTime = Date.now()
     this.abortController = new AbortController()
     const { signal } = this.abortController
+    const { diskVirtOps } = getPlatform()
 
     const items: VirtScanItem[] = []
     let scannedBytes = 0
 
     try {
-      // Get all NTFS volumes
-      const volumeScript = `Get-Volume | Where-Object { $_.FileSystemType -eq 'NTFS' -and $_.DriveLetter } | Select-Object -ExpandProperty DriveLetter`
-      const volumeOutput = await runPs(volumeScript)
-      const driveLetters = volumeOutput.trim().split(/\r?\n/).filter(Boolean).map((d) => d.trim())
+      const volumes = await diskVirtOps.getVolumes()
 
-      for (const letter of driveLetters) {
+      for (const volume of volumes) {
         if (signal.aborted) break
-        if (!isValidDriveLetter(letter)) continue
-
-        const drive = `${letter}:\\`
+        if (!diskVirtOps.isValidVolume(volume)) continue
 
         // Scan all non-hidden, non-system files
-        const scanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { -not $_.Attributes.HasFlag([System.IO.FileAttributes]::Hidden) -and -not $_.Attributes.HasFlag([System.IO.FileAttributes]::System) } | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
-
         try {
-          const output = await runPs(scanScript)
+          const rawFiles = await diskVirtOps.scanVolumeFiles(volume, signal)
           if (signal.aborted) break
 
-          const parsed = output.trim()
-          if (!parsed) continue
-
-          const rawItems = JSON.parse(parsed.startsWith('[') ? parsed : `[${parsed}]`) as {
-            FullName: string
-            Length: number
-            LastWriteTime: string
-          }[]
-
-          for (const raw of rawItems) {
+          for (const raw of rawFiles) {
             if (signal.aborted) break
-            if (isSystemPath(raw.FullName)) continue
+            if (diskVirtOps.isSystemPath(raw.fullName)) continue
 
-            const mimeType = lookup(raw.FullName) || 'application/octet-stream'
+            const mimeType = lookup(raw.fullName) || 'application/octet-stream'
 
             items.push({
-              path: raw.FullName,
-              size: raw.Length,
+              path: raw.fullName,
+              size: raw.length,
               mime: mimeType,
-              mtime: new Date(raw.LastWriteTime).getTime(),
+              mtime: new Date(raw.lastWriteTime).getTime(),
               isVirtualized: false,
             })
 
-            scannedBytes += raw.Length
+            scannedBytes += raw.length
 
             this.emit('virt-progress', {
               phase: 'scanning',
               current: items.length,
               total: 0,
-              currentFile: raw.FullName,
+              currentFile: raw.fullName,
               bytesProcessed: scannedBytes,
             } satisfies VirtProgress)
           }
@@ -300,35 +254,25 @@ export class DiskVirtualizer extends EventEmitter {
           // Drive access error or timeout, skip
         }
 
-        // Also scan for virtualized pointer files on this drive
+        // Also scan for virtualized pointer files on this volume
         const extFilter = EXTENSIONS.map((ext) => `'*${ext}'`).join(',')
-        const refileScanScript = `Get-ChildItem -Path '${psEscape(drive)}' -Recurse -File -Include ${extFilter} -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime | ConvertTo-Json -Compress`
 
         try {
-          const refileOutput = await runPs(refileScanScript)
+          const rawRefiles = await diskVirtOps.scanVolumeRefiles(volume, extFilter, signal)
           if (signal.aborted) break
-
-          const refileParsed = refileOutput.trim()
-          if (!refileParsed) continue
-
-          const rawRefiles = JSON.parse(refileParsed.startsWith('[') ? refileParsed : `[${refileParsed}]`) as {
-            FullName: string
-            Length: number
-            LastWriteTime: string
-          }[]
 
           for (const raw of rawRefiles) {
             if (signal.aborted) break
-            if (isSystemPath(raw.FullName)) continue
+            if (diskVirtOps.isSystemPath(raw.fullName)) continue
 
-            const pointer = readRefilePointer(raw.FullName)
+            const pointer = readRefilePointer(raw.fullName)
             if (!pointer) continue
 
             items.push({
-              path: raw.FullName,
+              path: raw.fullName,
               size: pointer.size,
               mime: pointer.mime,
-              mtime: new Date(raw.LastWriteTime).getTime(),
+              mtime: new Date(raw.lastWriteTime).getTime(),
               isVirtualized: true,
             })
           }
@@ -381,7 +325,7 @@ export class DiskVirtualizer extends EventEmitter {
 
       try {
         // Validate file exists and is not in system dirs
-        if (isSystemPath(filePath)) {
+        if (getPlatform().diskVirtOps.isSystemPath(filePath)) {
           errors.push(`${filePath}: system path, skipped`)
           continue
         }
@@ -523,7 +467,7 @@ export class DiskVirtualizer extends EventEmitter {
 
       try {
         // Validate paths are not in system directories
-        if (isSystemPath(refilePath)) {
+        if (getPlatform().diskVirtOps.isSystemPath(refilePath)) {
           errors.push(`${refilePath}: system path, skipped`)
           continue
         }
@@ -535,7 +479,7 @@ export class DiskVirtualizer extends EventEmitter {
         }
 
         const originalPath = getOriginalPathFromPointer(refilePath, pointer.name)
-        if (isSystemPath(originalPath)) {
+        if (getPlatform().diskVirtOps.isSystemPath(originalPath)) {
           errors.push(`${refilePath}: restoring to system path, skipped`)
           continue
         }

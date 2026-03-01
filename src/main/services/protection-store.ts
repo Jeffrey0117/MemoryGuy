@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import type { ProtectionRule } from '@shared/types';
-import { SYSTEM_PROTECTED } from '@shared/constants';
+import { SYSTEM_PROTECTED } from './platform';
 
 const STORE_FILE = 'protection-rules.json';
 

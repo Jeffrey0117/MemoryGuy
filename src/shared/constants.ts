@@ -87,6 +87,16 @@ export const IPC = {
   VIRT_REGISTRY_SCAN_FOLDERS: 'virt-registry-scan-folders',
   VIRT_REGISTRY_REBUILD: 'virt-registry-rebuild',
 
+  // Installed software
+  GET_INSTALLED_SOFTWARE: 'get-installed-software',
+  UNINSTALL_SOFTWARE: 'uninstall-software',
+
+  // Hardware health
+  GET_HARDWARE_HEALTH: 'get-hardware-health',
+
+  // Platform
+  GET_PLATFORM_CAPABILITIES: 'get-platform-capabilities',
+
   // Push events (main -> renderer)
   ON_SYSTEM_UPDATE: 'on-system-update',
   ON_PROCESS_UPDATE: 'on-process-update',
@@ -104,47 +114,9 @@ export const LEAK_CRITICAL_MB_MIN = 5;
 export const LEAK_MIN_DURATION_MIN = 5;
 export const LEAK_CRITICAL_MIN_DURATION_MIN = 2;
 
-// System-critical processes: never kill or trim
-export const SYSTEM_PROTECTED = new Set([
-  'System',
-  'System Idle Process',
-  'Registry',
-  'Memory Compression',
-  'explorer.exe',
-  'csrss.exe',
-  'winlogon.exe',
-  'lsass.exe',
-  'services.exe',
-  'svchost.exe',
-  'smss.exe',
-  'wininit.exe',
-  'dwm.exe',
-  'fontdrvhost.exe',
-  'sihost.exe',
-  'taskhostw.exe',
-  'electron.exe', // don't touch ourselves
-]);
-
-// Known multi-process apps (don't treat sub-processes as duplicates)
-export const MULTI_PROCESS_APPS = new Set([
-  'chrome.exe',
-  'msedge.exe',
-  'firefox.exe',
-  'Code.exe',
-  'electron.exe',
-  'slack.exe',
-  'discord.exe',
-  'teams.exe',
-  'brave.exe',
-  'opera.exe',
-  'vivaldi.exe',
-  'spotify.exe',
-]);
-
 // Trim / idle thresholds
 export const IDLE_CPU_THRESHOLD = 0.5;           // <0.5% CPU = idle
 export const IDLE_HIGH_RAM_MB = 200;             // idle + >200MB = recommendation
-export const TRIM_POWERSHELL_TIMEOUT_MS = 15_000;
 export const TRIM_RAM_MEASURE_DELAY_MS = 2_000;
 
 // Guardian
@@ -154,15 +126,3 @@ export const GUARDIAN_EVENT_LOG_MAX = 100;
 export const PORT_SCAN_MS = 5_000;
 export const DEV_PORT_RANGE_MIN = 3000;
 export const DEV_PORT_RANGE_MAX = 9999;
-export const DEV_PROCESS_NAMES = new Set([
-  'node.exe',
-  'bun.exe',
-  'deno.exe',
-  'python.exe',
-  'python3.exe',
-  'ruby.exe',
-  'java.exe',
-  'go.exe',
-  'php.exe',
-  'dotnet.exe',
-]);

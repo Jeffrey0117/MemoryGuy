@@ -15,11 +15,11 @@ import type {
   ProcessInfo,
 } from '@shared/types';
 import {
-  MULTI_PROCESS_APPS,
   IDLE_CPU_THRESHOLD,
   IDLE_HIGH_RAM_MB,
   TRIM_RAM_MEASURE_DELAY_MS,
 } from '@shared/constants';
+import { MULTI_PROCESS_APPS } from './platform';
 
 const MB = 1024 * 1024;
 

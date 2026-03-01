@@ -6,7 +6,8 @@ import fs from 'fs';
 import type { PortScanner } from './port-scanner';
 import type { ProtectionStore } from './protection-store';
 import type { DevServer } from '@shared/types';
-import { DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX, DEV_PROCESS_NAMES, PORT_SCAN_MS } from '@shared/constants';
+import { DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX, PORT_SCAN_MS } from '@shared/constants';
+import { getPlatform, DEV_PROCESS_NAMES } from './platform';
 
 interface AutoRestartConfig {
   readonly port: number;
@@ -32,18 +33,7 @@ function isValidDevCommand(commandLine: string): boolean {
 }
 
 function inferCwd(commandLine: string): string {
-  // Prefer node_modules parent directory (handles quoted paths)
-  const nmMatch = commandLine.match(/([A-Za-z]:\\[^"]*?)\\node_modules/i);
-  if (nmMatch) return nmMatch[1];
-  // Fallback: last quoted or unquoted absolute path
-  const quotedPaths = commandLine.match(/"([A-Za-z]:\\[^"]+)"/g);
-  if (quotedPaths?.length) {
-    const last = quotedPaths[quotedPaths.length - 1].replace(/"/g, '');
-    return path.dirname(last);
-  }
-  const paths = commandLine.match(/([A-Za-z]:\\[^\s"]+)/g);
-  if (paths?.length) return path.dirname(paths[paths.length - 1]);
-  return process.cwd();
+  return getPlatform().pathUtils.inferCwd(commandLine);
 }
 
 function sleep(ms: number): Promise<void> {

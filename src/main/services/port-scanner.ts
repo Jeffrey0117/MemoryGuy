@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
-import { execFile } from 'child_process';
 import http from 'http';
 import type { ProcessMonitor } from './process-monitor';
 import type { DevServer } from '@shared/types';
-import { PORT_SCAN_MS, DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX, DEV_PROCESS_NAMES } from '@shared/constants';
+import { PORT_SCAN_MS, DEV_PORT_RANGE_MIN, DEV_PORT_RANGE_MAX } from '@shared/constants';
+import { getPlatform, DEV_PROCESS_NAMES } from './platform';
 
 function sanitizeTitle(raw: string): string {
   return raw
@@ -12,41 +12,6 @@ function sanitizeTitle(raw: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .slice(0, 200);
-}
-
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ',') {
-      fields.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  fields.push(current);
-  return fields;
-}
-
-interface NetstatEntry {
-  readonly port: number;
-  readonly pid: number;
 }
 
 export class PortScanner extends EventEmitter {
@@ -76,7 +41,8 @@ export class PortScanner extends EventEmitter {
 
   async scan(): Promise<DevServer[]> {
     try {
-      const entries = await this.getListeningPorts();
+      const platform = getPlatform();
+      const entries = await platform.portOps.getListeningPorts();
       const processes = this.processMonitor.getProcesses();
       const procMap = new Map(processes.map((p) => [p.pid, p]));
 
@@ -98,7 +64,7 @@ export class PortScanner extends EventEmitter {
 
       // Batch-fetch PPIDs + CommandLine for all discovered PIDs
       const pids = unique.map((e) => e.pid);
-      const detailsMap = await this.getProcessDetails(pids);
+      const detailsMap = await platform.portOps.getProcessDetails(pids);
 
       // HTTP probe all servers in parallel
       const servers = await Promise.all(
@@ -129,85 +95,6 @@ export class PortScanner extends EventEmitter {
     } catch {
       return this.currentServers;
     }
-  }
-
-  private getProcessDetails(pids: number[]): Promise<Map<number, { ppid: number; commandLine: string }>> {
-    if (pids.length === 0) return Promise.resolve(new Map());
-
-    const validPids = pids.filter((p) => Number.isSafeInteger(p) && p > 0);
-    if (validPids.length === 0) return Promise.resolve(new Map());
-
-    const filter = validPids.map((p) => `ProcessId=${p}`).join(' or ');
-    const psCommand = `Get-CimInstance Win32_Process -Filter '${filter}' | Select-Object ProcessId, ParentProcessId, CommandLine | ConvertTo-Csv -NoTypeInformation`;
-
-    return new Promise((resolve) => {
-      execFile(
-        'powershell.exe',
-        ['-NoProfile', '-Command', psCommand],
-        { timeout: 4000 },
-        (err, stdout) => {
-          if (err) {
-            resolve(new Map());
-            return;
-          }
-
-          const map = new Map<number, { ppid: number; commandLine: string }>();
-          const lines = stdout.split('\n');
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('"ProcessId"')) continue;
-
-            // CSV format: "ProcessId","ParentProcessId","CommandLine"
-            // CommandLine may contain commas and quotes, so parse carefully
-            const fields = parseCsvLine(trimmed);
-            if (fields.length < 2) continue;
-            const pid = parseInt(fields[0], 10);
-            const ppid = parseInt(fields[1], 10);
-            const commandLine = fields[2] ?? '';
-            if (Number.isFinite(pid) && pid > 0 && Number.isFinite(ppid) && ppid >= 0) {
-              map.set(pid, { ppid, commandLine });
-            }
-          }
-
-          resolve(map);
-        },
-      );
-    });
-  }
-
-  private getListeningPorts(): Promise<NetstatEntry[]> {
-    return new Promise((resolve) => {
-      execFile('netstat', ['-ano'], { timeout: 5000 }, (err, stdout) => {
-        if (err) {
-          resolve([]);
-          return;
-        }
-
-        const entries: NetstatEntry[] = [];
-        const lines = stdout.split('\n');
-
-        for (const line of lines) {
-          if (!line.includes('LISTENING')) continue;
-          // Format: TCP    0.0.0.0:3000    0.0.0.0:0    LISTENING    12345
-          const parts = line.trim().split(/\s+/);
-          if (parts.length < 5) continue;
-
-          const localAddr = parts[1];
-          const pid = parseInt(parts[4], 10);
-          if (!Number.isFinite(pid) || pid <= 0) continue;
-
-          const colonIdx = localAddr.lastIndexOf(':');
-          if (colonIdx === -1) continue;
-          const port = parseInt(localAddr.slice(colonIdx + 1), 10);
-          if (!Number.isFinite(port)) continue;
-
-          entries.push({ port, pid });
-        }
-
-        resolve(entries);
-      });
-    });
   }
 
   private httpProbe(url: string): Promise<{ status?: number; title?: string }> {

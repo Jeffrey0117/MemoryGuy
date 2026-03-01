@@ -256,18 +256,8 @@ export interface VirtStatusResult {
 export interface VirtConfig {
   readonly defaultBackend: string
   readonly backends: Readonly<Record<string, {
-    readonly type: 'http-upload' | 's3' | 'duk' | 'self-hosted'
+    readonly type: 'self-hosted'
     readonly endpoint: string
-    readonly fieldName?: string
-    readonly responseUrlPath?: string
-    readonly headers?: Readonly<Record<string, string>>
-    readonly bucket?: string
-    readonly region?: string
-    readonly accessKeyId?: string
-    readonly secretAccessKey?: string
-    readonly prefix?: string
-    readonly publicUrlBase?: string
-    readonly variant?: 'duky' | 'dukic' | 'dukbox'
     readonly apiKey?: string
   }>>
 }
@@ -316,6 +306,58 @@ export interface VirtRegistryStats {
 export interface VirtRegistryScanResult {
   readonly added: number
   readonly migrated: number
+}
+
+// --- Hardware health check ---
+
+export interface HardwareSpecs {
+  readonly cpu: {
+    readonly brand: string
+    readonly cores: number
+    readonly physicalCores: number
+    readonly speed: number
+    readonly speedMax: number
+  }
+  readonly ram: {
+    readonly totalBytes: number
+    readonly slots: number
+    readonly usedSlots: number
+    readonly type: string
+    readonly speed: number
+  }
+  readonly disk: {
+    readonly devices: readonly {
+      readonly name: string
+      readonly type: string
+      readonly size: number
+    }[]
+    readonly hasSystemSsd: boolean
+  }
+  readonly gpu: {
+    readonly model: string
+    readonly vram: number
+    readonly vendor: string
+  }
+}
+
+export interface HardwareScore {
+  readonly overall: number
+  readonly cpu: number
+  readonly ram: number
+  readonly disk: number
+  readonly gpu: number
+}
+
+export interface HardwareAdvice {
+  readonly key: string
+  readonly severity: 'info' | 'suggest' | 'bottleneck'
+  readonly params: Readonly<Record<string, string>>
+}
+
+export interface HardwareHealth {
+  readonly specs: HardwareSpecs
+  readonly score: HardwareScore
+  readonly advice: readonly HardwareAdvice[]
 }
 
 // --- API exposed to renderer ---
@@ -404,6 +446,9 @@ export interface MemoryGuyAPI {
   virtRegistryRebuild: () => Promise<VirtRegistryScanResult>
 
   onVirtWatchEvent: (callback: (event: WatchEvent) => void) => () => void
+
+  // Hardware health
+  getHardwareHealth: () => Promise<HardwareHealth>
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

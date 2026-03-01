@@ -269,15 +269,8 @@ const translations = {
   // Config
   'virt.config.title': { en: 'Storage Settings', zh: '儲存設定' },
   'virt.config.endpoint': { en: 'Endpoint URL', zh: '端點 URL' },
-  'virt.config.fieldName': { en: 'Field Name', zh: '欄位名稱' },
-  'virt.config.responsePath': { en: 'Response URL Path', zh: '回應 URL 路徑' },
   'virt.config.save': { en: 'Save', zh: '儲存' },
-  'virt.config.variant': { en: 'Service', zh: '服務類型' },
-  'virt.config.video': { en: 'Video', zh: '影片' },
-  'virt.config.audio': { en: 'Audio', zh: '音訊' },
-  'virt.config.general': { en: 'General', zh: '通用' },
   'virt.config.apiKey': { en: 'API Key', zh: 'API 金鑰' },
-  'virt.config.routingHint': { en: 'Tip: duky=video, dukic=audio, dukbox=any file type', zh: '提示：duky=影片、dukic=音訊、dukbox=所有檔案類型' },
   'virt.config.selfHostedHint': { en: 'Pokkit server — POST /upload, GET file URL, HEAD verify', zh: 'Pokkit 伺服器 — POST /upload 上傳、GET 檔案 URL、HEAD 驗證' },
   // Empty / no config
   'virt.noConfig': { en: 'No backend configured', zh: '尚未設定後端' },

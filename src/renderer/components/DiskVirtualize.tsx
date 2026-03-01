@@ -23,14 +23,6 @@ function getMimeCategory(mime: string): MimeFilter {
 }
 
 
-type BackendType = 'http-upload' | 'duk' | 'self-hosted';
-
-const BACKEND_LABELS: Record<BackendType, string> = {
-  'self-hosted': 'Self-Hosted',
-  'duk': 'duk (ReFile Workers)',
-  'http-upload': 'HTTP Upload',
-};
-
 function ConfigPanel({
   config,
   onSave,
@@ -41,179 +33,51 @@ function ConfigPanel({
   locale: 'en' | 'zh';
 }) {
   const current = config?.backends[config.defaultBackend];
-  const [backendType, setBackendType] = useState<BackendType>(
-    (current?.type as BackendType) ?? 'self-hosted'
-  );
-
-  const [shEndpoint, setShEndpoint] = useState(
-    current?.type === 'self-hosted' ? current.endpoint : 'https://pokkit.isnowfriend.com'
-  );
-  const [shApiKey, setShApiKey] = useState(
-    current?.type === 'self-hosted' ? (current.apiKey ?? '') : ''
-  );
 
   const [endpoint, setEndpoint] = useState(
-    current?.type === 'http-upload' ? current.endpoint : ''
+    current?.endpoint ?? 'https://pokkit.isnowfriend.com'
   );
-  const [fieldName, setFieldName] = useState(current?.fieldName ?? 'file');
-  const [responseUrlPath, setResponseUrlPath] = useState(current?.responseUrlPath ?? 'data.url');
-
-  const [dukEndpoint, setDukEndpoint] = useState(
-    current?.type === 'duk' ? current.endpoint : 'http://localhost:8787'
-  );
-  const [dukApiKey, setDukApiKey] = useState(
-    current?.type === 'duk' ? (current.apiKey ?? '') : ''
-  );
-  const [dukVariant, setDukVariant] = useState<'duky' | 'dukic' | 'dukbox'>(
-    current?.type === 'duk' ? (current.variant ?? 'dukbox') : 'dukbox'
-  );
+  const [apiKey, setApiKey] = useState(current?.apiKey ?? '');
 
   const handleSave = () => {
-    if (backendType === 'self-hosted') {
-      if (!shEndpoint.trim() || !shApiKey.trim()) return;
-      onSave({
-        defaultBackend: 'self-hosted',
-        backends: {
-          'self-hosted': {
-            type: 'self-hosted',
-            endpoint: shEndpoint.trim(),
-            apiKey: shApiKey.trim(),
-          },
+    if (!endpoint.trim()) return;
+    onSave({
+      defaultBackend: 'pokkit',
+      backends: {
+        pokkit: {
+          type: 'self-hosted',
+          endpoint: endpoint.trim(),
+          apiKey: apiKey.trim(),
         },
-      });
-    } else if (backendType === 'duk') {
-      if (!dukEndpoint.trim() || !dukApiKey.trim()) return;
-      onSave({
-        defaultBackend: 'default',
-        backends: {
-          default: {
-            type: 'duk',
-            variant: dukVariant,
-            endpoint: dukEndpoint.trim(),
-            apiKey: dukApiKey.trim(),
-          },
-        },
-      });
-    } else {
-      if (!endpoint.trim()) return;
-      onSave({
-        defaultBackend: 'default',
-        backends: {
-          default: {
-            type: 'http-upload',
-            endpoint: endpoint.trim(),
-            fieldName: fieldName.trim() || 'file',
-            responseUrlPath: responseUrlPath.trim() || 'data.url',
-          },
-        },
-      });
-    }
+      },
+    });
   };
 
   const inputCls = 'mt-1 w-full px-3 py-1.5 text-sm rounded bg-mg-bg border border-mg-border/40 text-mg-text placeholder:text-mg-muted/50 focus:outline-none focus:border-mg-primary/50';
-  const canSave = backendType === 'self-hosted'
-    ? shEndpoint.trim() && shApiKey.trim()
-    : backendType === 'duk'
-      ? dukEndpoint.trim() && dukApiKey.trim()
-      : endpoint.trim();
 
   return (
     <div className="rounded-lg border border-mg-border/40 p-4 space-y-3">
       <h3 className="text-sm font-medium text-mg-text">{t('virt.config.title', locale)}</h3>
 
-      <div className="flex gap-1">
-        {(['self-hosted', 'duk', 'http-upload'] as const).map((bt) => (
-          <button
-            key={bt}
-            onClick={() => setBackendType(bt)}
-            className={`px-3 py-1 text-xs rounded transition-colors ${
-              backendType === bt
-                ? 'bg-mg-primary/20 text-mg-primary'
-                : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-            }`}
-          >
-            {BACKEND_LABELS[bt]}
-          </button>
-        ))}
-      </div>
-
       <div className="space-y-2">
-        {backendType === 'self-hosted' ? (
-          <>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
-              <input type="text" value={shEndpoint} onChange={(e) => setShEndpoint(e.target.value)}
-                placeholder="https://pokkit.isnowfriend.com" className={inputCls} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
-              <input type="password" value={shApiKey} onChange={(e) => setShApiKey(e.target.value)}
-                placeholder="Bearer token" className={inputCls} />
-            </label>
-            <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
-              {t('virt.config.selfHostedHint', locale)}
-            </div>
-          </>
-        ) : backendType === 'duk' ? (
-          <>
-            <div>
-              <span className="text-xs text-mg-muted">{t('virt.config.variant', locale)}</span>
-              <div className="flex gap-1 mt-1">
-                {(['duky', 'dukic', 'dukbox'] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setDukVariant(v)}
-                    className={`px-3 py-1 text-xs rounded transition-colors ${
-                      dukVariant === v
-                        ? 'bg-mg-primary/20 text-mg-primary'
-                        : 'bg-mg-border/30 text-mg-muted hover:text-mg-text'
-                    }`}
-                  >
-                    {v === 'duky' ? `duky (${t('virt.config.video', locale)})` :
-                     v === 'dukic' ? `dukic (${t('virt.config.audio', locale)})` :
-                     `dukbox (${t('virt.config.general', locale)})`}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
-              <input type="text" value={dukEndpoint} onChange={(e) => setDukEndpoint(e.target.value)}
-                placeholder="http://localhost:8787" className={inputCls} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
-              <input type="password" value={dukApiKey} onChange={(e) => setDukApiKey(e.target.value)}
-                placeholder="Bearer token" className={inputCls} />
-            </label>
-            <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
-              {t('virt.config.routingHint', locale)}
-            </div>
-          </>
-        ) : (
-          <>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
-              <input type="text" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="https://example.com/upload" className={inputCls} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.fieldName', locale)}</span>
-              <input type="text" value={fieldName} onChange={(e) => setFieldName(e.target.value)}
-                placeholder="file" className={inputCls} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-mg-muted">{t('virt.config.responsePath', locale)}</span>
-              <input type="text" value={responseUrlPath} onChange={(e) => setResponseUrlPath(e.target.value)}
-                placeholder="data.url" className={inputCls} />
-            </label>
-          </>
-        )}
+        <label className="block">
+          <span className="text-xs text-mg-muted">{t('virt.config.endpoint', locale)}</span>
+          <input type="text" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
+            placeholder="https://pokkit.isnowfriend.com" className={inputCls} />
+        </label>
+        <label className="block">
+          <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Bearer token" className={inputCls} />
+        </label>
+        <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
+          {t('virt.config.selfHostedHint', locale)}
+        </div>
       </div>
 
       <button
         onClick={handleSave}
-        disabled={!canSave}
+        disabled={!endpoint.trim()}
         className="px-4 py-1.5 text-sm rounded bg-mg-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {t('virt.config.save', locale)}

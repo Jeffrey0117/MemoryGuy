@@ -53,39 +53,13 @@ function isValidDriveLetter(letter: string): boolean {
   return /^[A-Za-z]$/.test(letter.trim())
 }
 
-const httpUploadSchema = z.object({
-  type: z.literal('http-upload'),
-  endpoint: z.string().url().max(2048),
-  fieldName: z.string().min(1).max(128),
-  responseUrlPath: z.string().min(1).max(256),
-  headers: z.record(z.string(), z.string()).optional(),
-})
-
-const s3Schema = z.object({
-  type: z.literal('s3'),
-  bucket: z.string().min(1).max(256),
-  region: z.string().min(1).max(64),
-  endpoint: z.string().url().max(2048).optional(),
-  accessKeyId: z.string().min(1).max(256),
-  secretAccessKey: z.string().min(1).max(256),
-  prefix: z.string().max(256).optional(),
-  publicUrlBase: z.string().url().max(2048).optional(),
-})
-
-const dukSchema = z.object({
-  type: z.literal('duk'),
-  variant: z.enum(['duky', 'dukic', 'dukbox']),
-  endpoint: z.string().url().max(2048),
-  apiKey: z.string().min(1).max(256),
-})
-
 const selfHostedSchema = z.object({
   type: z.literal('self-hosted'),
   endpoint: z.string().url().max(2048),
   apiKey: z.string().max(256),
 })
 
-const backendSchema = z.discriminatedUnion('type', [httpUploadSchema, s3Schema, dukSchema, selfHostedSchema])
+const backendSchema = selfHostedSchema
 
 const configSchema = z.object({
   defaultBackend: z.string().min(1).max(128),

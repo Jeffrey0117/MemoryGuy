@@ -15,7 +15,10 @@ import type { DiskCleaner } from './services/disk-cleaner';
 import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
 import type { RefileRegistry } from './services/refile/refile-registry';
 import type { RefileWatcher } from './services/refile-watcher';
+import type { HardwareProfiler } from './services/hardware-profiler';
+import type { SoftwareManager } from './services/software-manager';
 import { killByPid } from './services/process-killer';
+import { getPlatform } from './services/platform';
 import { isRefilePath } from './services/refile/refile-format';
 import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress, WatchEvent } from '@shared/types';
 
@@ -35,6 +38,8 @@ interface Deps {
   diskVirtualizer: DiskVirtualizer;
   refileRegistry: RefileRegistry;
   refileWatcher: RefileWatcher;
+  hardwareProfiler: HardwareProfiler;
+  softwareManager: SoftwareManager;
   getMainWindow: () => BrowserWindow | null;
 }
 
@@ -42,7 +47,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileRegistry, refileWatcher, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileRegistry, refileWatcher, hardwareProfiler, softwareManager, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -471,6 +476,36 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
   ipcMain.handle(IPC.VIRT_REGISTRY_REBUILD, () => {
     const watchPaths = refileWatcher.getFolders().filter((f) => f.enabled).map((f) => f.path);
     return refileRegistry.rebuild(watchPaths);
+  });
+
+  // --- Installed software ---
+  ipcMain.handle(IPC.GET_INSTALLED_SOFTWARE, async () => {
+    try {
+      return await softwareManager.getInstalledSoftware();
+    } catch {
+      return [];
+    }
+  });
+
+  ipcMain.handle(IPC.UNINSTALL_SOFTWARE, async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length === 0 || id.length > 64) {
+      return { success: false, error: 'Invalid software ID' };
+    }
+    return softwareManager.uninstallSoftware(id);
+  });
+
+  // --- Platform capabilities ---
+  ipcMain.handle(IPC.GET_PLATFORM_CAPABILITIES, () => {
+    return getPlatform().capabilities;
+  });
+
+  // --- Hardware health ---
+  ipcMain.handle(IPC.GET_HARDWARE_HEALTH, async () => {
+    try {
+      return await hardwareProfiler.getHealth();
+    } catch {
+      return null;
+    }
   });
 
   refileWatcher.on('watch-event', (event: WatchEvent) => {

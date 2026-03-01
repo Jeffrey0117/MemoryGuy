@@ -9,12 +9,14 @@ const LOCATION_LABELS = {
   hkcu: 'startup.hkcu',
   hklm: 'startup.hklm',
   folder: 'startup.folder',
+  launchagent: 'startup.launchagent',
 } as const;
 
 const LOCATION_COLORS = {
   hkcu: 'bg-blue-500/20 text-blue-400',
   hklm: 'bg-amber-500/20 text-amber-400',
   folder: 'bg-emerald-500/20 text-emerald-400',
+  launchagent: 'bg-purple-500/20 text-purple-400',
 } as const;
 
 function StartupRow({

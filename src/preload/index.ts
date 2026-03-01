@@ -122,6 +122,16 @@ contextBridge.exposeInMainWorld('memoryGuy', {
   virtRegistryScanFolders: (folderPaths: string[]) => ipcRenderer.invoke(IPC.VIRT_REGISTRY_SCAN_FOLDERS, folderPaths),
   virtRegistryRebuild: () => ipcRenderer.invoke(IPC.VIRT_REGISTRY_REBUILD),
 
+  // Installed software
+  getInstalledSoftware: () => ipcRenderer.invoke(IPC.GET_INSTALLED_SOFTWARE),
+  uninstallSoftware: (id: string) => ipcRenderer.invoke(IPC.UNINSTALL_SOFTWARE, id),
+
+  // Hardware health
+  getHardwareHealth: () => ipcRenderer.invoke(IPC.GET_HARDWARE_HEALTH),
+
+  // Platform
+  getPlatformCapabilities: () => ipcRenderer.invoke(IPC.GET_PLATFORM_CAPABILITIES),
+
   onVirtWatchEvent: (callback: (event: unknown) => void) => {
     const handler = (_: unknown, data: unknown) => callback(data);
     ipcRenderer.on(IPC.ON_VIRT_WATCH_EVENT, handler);

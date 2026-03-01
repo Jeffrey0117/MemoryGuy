@@ -16,6 +16,8 @@ import { DiskCleaner } from './services/disk-cleaner';
 import { DiskVirtualizer } from './services/disk-virtualizer';
 import { RefileRegistry } from './services/refile/refile-registry';
 import { RefileWatcher } from './services/refile-watcher';
+import { HardwareProfiler } from './services/hardware-profiler';
+import { SoftwareManager } from './services/software-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
@@ -58,6 +60,8 @@ const diskVirtualizer = new DiskVirtualizer();
 const refileRegistry = new RefileRegistry();
 diskVirtualizer.setRegistry(refileRegistry);
 const refileWatcher = new RefileWatcher(diskVirtualizer);
+const hardwareProfiler = new HardwareProfiler(systemMonitor);
+const softwareManager = new SoftwareManager();
 
 function getPreloadPath(): string {
   // Forge Vite plugin provides the correct path at build time
@@ -139,6 +143,8 @@ async function initialize(): Promise<void> {
     diskVirtualizer,
     refileRegistry,
     refileWatcher,
+    hardwareProfiler,
+    softwareManager,
     getMainWindow: () => mainWindow,
   });
 

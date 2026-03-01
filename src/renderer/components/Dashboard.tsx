@@ -1,6 +1,7 @@
 import { useSystemStats } from '../hooks/useSystemStats';
 import { SystemGauge } from './SystemGauge';
 import { MemoryChart } from './MemoryChart';
+import { HardwareHealth } from './HardwareHealth';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
 
@@ -55,6 +56,8 @@ export function Dashboard() {
         color="#f59e0b"
         unit="percent"
       />
+
+      <HardwareHealth />
     </div>
   );
 }

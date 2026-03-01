@@ -171,6 +171,7 @@ const translations = {
   'startup.hkcu': { en: 'User', zh: '使用者' },
   'startup.hklm': { en: 'System', zh: '系統' },
   'startup.folder': { en: 'Folder', zh: '資料夾' },
+  'startup.launchagent': { en: 'LaunchAgent', zh: 'LaunchAgent' },
 
   // Environment Variables
   'tab.envvars': { en: 'Env Vars', zh: '環境變數' },
@@ -303,6 +304,20 @@ const translations = {
   'virt.phase.hashing': { en: 'Hashing', zh: '計算雜湊' },
   'virt.phase.uploading': { en: 'Uploading', zh: '上傳中' },
   'virt.phase.downloading': { en: 'Downloading', zh: '下載中' },
+  // Hardware Health
+  // Installed Software / Uninstall
+  'uninstall.title': { en: 'Installed Software', zh: '已安裝軟體' },
+  'uninstall.search': { en: 'Search software...', zh: '搜尋軟體...' },
+  'uninstall.uninstall': { en: 'Uninstall', zh: '卸載' },
+  'uninstall.confirm': { en: 'Confirm?', zh: '確認？' },
+  'uninstall.removing': { en: 'Removing...', zh: '移除中...' },
+  'uninstall.success': { en: 'Uninstalled', zh: '已卸載' },
+  'uninstall.failed': { en: 'Failed', zh: '失敗' },
+  'uninstall.refresh': { en: 'Refresh', zh: '重新整理' },
+  'uninstall.empty': { en: 'No software found', zh: '沒有找到軟體' },
+  'uninstall.count': { en: 'programs', zh: '個程式' },
+  'uninstall.publisher': { en: 'Publisher', zh: '發行者' },
+  'uninstall.size': { en: 'Size', zh: '大小' },
   // Hardware Health
   'hw.title': { en: 'Hardware Health', zh: '硬體健檢' },
   'hw.score.overall': { en: 'Overall', zh: '綜合性能' },

@@ -9,6 +9,7 @@ import type {
   MemoryGuyAPI,
 } from '@shared/types';
 import { useAppStore } from '../stores/app-store';
+import { UninstallPanel } from './UninstallPanel';
 import { t } from '../i18n';
 import type { Locale } from '../i18n';
 
@@ -116,6 +117,8 @@ export function QuickActions() {
         onToggle={handleAutoProtectToggle}
         locale={locale}
       />
+
+      <UninstallPanel locale={locale} />
 
       {analysis && (
         <ManualKillPanel processes={analysis.tier3.killableProcesses} locale={locale} />

@@ -140,9 +140,15 @@ export interface StartupItem {
   readonly id: string
   readonly name: string
   readonly command: string
-  readonly location: 'hkcu' | 'hklm' | 'folder'
+  readonly location: 'hkcu' | 'hklm' | 'folder' | 'launchagent'
   readonly enabled: boolean
   readonly isAdmin: boolean
+}
+
+export interface PlatformCapabilities {
+  readonly canTrimWorkingSets: boolean
+  readonly canManageTrash: boolean
+  readonly trashLabel: string
 }
 
 // --- Environment variables ---
@@ -308,6 +314,18 @@ export interface VirtRegistryScanResult {
   readonly migrated: number
 }
 
+// --- Installed software ---
+
+export interface InstalledSoftware {
+  readonly id: string
+  readonly name: string
+  readonly publisher: string
+  readonly version: string
+  readonly installDate: string
+  readonly estimatedSize: number
+  readonly isSystemComponent: boolean
+}
+
 // --- Hardware health check ---
 
 export interface HardwareSpecs {
@@ -447,8 +465,15 @@ export interface MemoryGuyAPI {
 
   onVirtWatchEvent: (callback: (event: WatchEvent) => void) => () => void
 
+  // Installed software
+  getInstalledSoftware: () => Promise<InstalledSoftware[]>
+  uninstallSoftware: (id: string) => Promise<{ success: boolean; error?: string }>
+
   // Hardware health
   getHardwareHealth: () => Promise<HardwareHealth>
+
+  // Platform
+  getPlatformCapabilities: () => Promise<PlatformCapabilities>
 
   onSystemUpdate: (callback: (stats: SystemStats) => void) => () => void
   onLeakDetected: (callback: (leak: LeakInfo) => void) => () => void

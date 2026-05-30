@@ -76,6 +76,7 @@ export interface FixedPathTarget {
 
 export interface DiskOps {
   getFixedDrives(): Promise<string[]>
+  getDriveSpace(drive: string): Promise<{ totalBytes: number; freeBytes: number }>
   scanDriveForDevDirs(drive: string, depth: number, targetDirs: readonly string[]): Promise<{ fullPath: string; lastWriteTime: string }[]>
   getDirectorySize(dirPath: string): Promise<number>
   directoryExists(dirPath: string): Promise<boolean>

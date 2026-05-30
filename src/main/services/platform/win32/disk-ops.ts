@@ -16,6 +16,19 @@ export function createWin32DiskOps(): DiskOps {
       }
     },
 
+    async getDriveSpace(drive: string): Promise<{ totalBytes: number; freeBytes: number }> {
+      if (!/^[A-Za-z]$/.test(drive)) return { totalBytes: 0, freeBytes: 0 }
+      try {
+        const script = `$v = Get-Volume -DriveLetter ${drive} -ErrorAction Stop; Write-Output ("{0} {1}" -f [int64]$v.Size, [int64]$v.SizeRemaining)`
+        const output = await runPs(script)
+        const match = output.trim().match(/(\d+)\s+(\d+)/)
+        if (!match) return { totalBytes: 0, freeBytes: 0 }
+        return { totalBytes: parseInt(match[1], 10) || 0, freeBytes: parseInt(match[2], 10) || 0 }
+      } catch {
+        return { totalBytes: 0, freeBytes: 0 }
+      }
+    },
+
     async scanDriveForDevDirs(drive: string, depth: number, targetDirs: readonly string[]): Promise<{ fullPath: string; lastWriteTime: string }[]> {
       const targetList = targetDirs.map((t) => `'${psEscape(t)}'`).join(',')
       const excludePattern = 'Windows|Program Files|Program Files \\(x86\\)|\\.git\\\\|\\$Recycle\\.Bin|ProgramData'

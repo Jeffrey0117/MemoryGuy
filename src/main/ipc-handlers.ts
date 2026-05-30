@@ -12,6 +12,7 @@ import type { HookGenerator } from './services/hook-generator';
 import type { StartupManager } from './services/startup-manager';
 import type { EnvReader } from './services/env-reader';
 import type { DiskCleaner } from './services/disk-cleaner';
+import type { DiskWatchdog } from './services/disk-watchdog';
 import { type DiskVirtualizer, validateConfig } from './services/disk-virtualizer';
 import type { RefileRegistry } from './services/refile/refile-registry';
 import type { RefileWatcher } from './services/refile-watcher';
@@ -20,7 +21,7 @@ import type { SoftwareManager } from './services/software-manager';
 import { killByPid } from './services/process-killer';
 import { getPlatform } from './services/platform';
 import { isRefilePath } from './services/refile/refile-format';
-import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress, WatchEvent } from '@shared/types';
+import type { SystemStats, ProcessInfo, LeakInfo, GuardianEvent, DevServer, DiskScanProgress, VirtProgress, WatchEvent, DriveSpace, DiskWatchdogSettings } from '@shared/types';
 
 interface Deps {
   systemMonitor: SystemMonitor;
@@ -35,6 +36,7 @@ interface Deps {
   startupManager: StartupManager;
   envReader: EnvReader;
   diskCleaner: DiskCleaner;
+  diskWatchdog: DiskWatchdog;
   diskVirtualizer: DiskVirtualizer;
   refileRegistry: RefileRegistry;
   refileWatcher: RefileWatcher;
@@ -47,7 +49,7 @@ function isValidPidArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((p) => Number.isInteger(p) && p > 0);
 }
 
-export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskVirtualizer, refileRegistry, refileWatcher, hardwareProfiler, softwareManager, getMainWindow }: Deps): void {
+export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker, optimizer, protectionStore, processGuardian, portScanner, devServerManager, hookGenerator, startupManager, envReader, diskCleaner, diskWatchdog, diskVirtualizer, refileRegistry, refileWatcher, hardwareProfiler, softwareManager, getMainWindow }: Deps): void {
   // --- System stats ---
   ipcMain.handle(IPC.GET_SYSTEM_STATS, () => {
     return systemMonitor.getStats();
@@ -330,6 +332,41 @@ export function setupIpcHandlers({ systemMonitor, processMonitor, memoryTracker,
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.ON_DISK_SCAN_PROGRESS, progress);
+    }
+  });
+
+  // --- Disk watchdog ---
+  ipcMain.handle(IPC.GET_DISK_WATCHDOG, () => {
+    return diskWatchdog.getSettings();
+  });
+
+  ipcMain.handle(IPC.SET_DISK_WATCHDOG, (_event, settings: unknown) => {
+    if (typeof settings !== 'object' || settings === null) {
+      return diskWatchdog.getSettings();
+    }
+    return diskWatchdog.setSettings(settings as Partial<DiskWatchdogSettings>);
+  });
+
+  ipcMain.handle(IPC.GET_DRIVE_SPACES, async () => {
+    try {
+      return await diskWatchdog.getDriveSpaces();
+    } catch {
+      return [];
+    }
+  });
+
+  ipcMain.handle(IPC.TEST_DISK_ALERT, async () => {
+    try {
+      return await diskWatchdog.testAlert();
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  });
+
+  diskWatchdog.on('update', (drives: DriveSpace[]) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.ON_DISK_WATCHDOG_UPDATE, drives);
     }
   });
 

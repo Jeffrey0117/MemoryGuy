@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Locale } from '../i18n';
 
 export type Theme = 'dark' | 'light';
-type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup' | 'virtualize';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup' | 'virtualize' | 'watchdog';
 
 interface AppStore {
   activeTab: Tab;

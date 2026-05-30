@@ -58,6 +58,13 @@ export const IPC = {
   CANCEL_DISK_SCAN: 'cancel-disk-scan',
   ON_DISK_SCAN_PROGRESS: 'on-disk-scan-progress',
 
+  // Disk watchdog
+  GET_DISK_WATCHDOG: 'get-disk-watchdog',
+  SET_DISK_WATCHDOG: 'set-disk-watchdog',
+  GET_DRIVE_SPACES: 'get-drive-spaces',
+  TEST_DISK_ALERT: 'test-disk-alert',
+  ON_DISK_WATCHDOG_UPDATE: 'on-disk-watchdog-update',
+
   // Disk virtualization
   VIRT_GET_USER_FOLDERS: 'virt-get-user-folders',
   VIRT_SCAN: 'virt-scan',
@@ -126,3 +133,9 @@ export const GUARDIAN_EVENT_LOG_MAX = 100;
 export const PORT_SCAN_MS = 5_000;
 export const DEV_PORT_RANGE_MIN = 3000;
 export const DEV_PORT_RANGE_MAX = 9999;
+
+// Disk watchdog defaults
+export const WATCHDOG_DEFAULT_INTERVAL_SEC = 60;
+export const WATCHDOG_DEFAULT_WARN_GB = 20;
+export const WATCHDOG_DEFAULT_URGENT_GB = 8;
+export const WATCHDOG_DEFAULT_RENOTIFY_MIN = 30;

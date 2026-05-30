@@ -91,6 +91,17 @@ contextBridge.exposeInMainWorld('memoryGuy', {
     return () => { ipcRenderer.removeListener(IPC.ON_DISK_SCAN_PROGRESS, handler); };
   },
 
+  // Disk watchdog
+  getDiskWatchdog: () => ipcRenderer.invoke(IPC.GET_DISK_WATCHDOG),
+  setDiskWatchdog: (settings: unknown) => ipcRenderer.invoke(IPC.SET_DISK_WATCHDOG, settings),
+  getDriveSpaces: () => ipcRenderer.invoke(IPC.GET_DRIVE_SPACES),
+  testDiskAlert: () => ipcRenderer.invoke(IPC.TEST_DISK_ALERT),
+  onDiskWatchdogUpdate: (callback: (drives: unknown) => void) => {
+    const handler = (_: unknown, data: unknown) => callback(data);
+    ipcRenderer.on(IPC.ON_DISK_WATCHDOG_UPDATE, handler);
+    return () => { ipcRenderer.removeListener(IPC.ON_DISK_WATCHDOG_UPDATE, handler); };
+  },
+
   // Disk virtualization
   virtGetUserFolders: () => ipcRenderer.invoke(IPC.VIRT_GET_USER_FOLDERS),
   virtScan: () => ipcRenderer.invoke(IPC.VIRT_SCAN),

@@ -13,6 +13,7 @@ import { HookGenerator } from './services/hook-generator';
 import { StartupManager } from './services/startup-manager';
 import { EnvReader } from './services/env-reader';
 import { DiskCleaner } from './services/disk-cleaner';
+import { DiskWatchdog } from './services/disk-watchdog';
 import { DiskVirtualizer } from './services/disk-virtualizer';
 import { RefileRegistry } from './services/refile/refile-registry';
 import { RefileWatcher } from './services/refile-watcher';
@@ -56,6 +57,7 @@ const hookGenerator = new HookGenerator(protectionStore);
 const startupManager = new StartupManager();
 const envReader = new EnvReader();
 const diskCleaner = new DiskCleaner();
+const diskWatchdog = new DiskWatchdog();
 const diskVirtualizer = new DiskVirtualizer();
 const refileRegistry = new RefileRegistry();
 diskVirtualizer.setRegistry(refileRegistry);
@@ -140,6 +142,7 @@ async function initialize(): Promise<void> {
     startupManager,
     envReader,
     diskCleaner,
+    diskWatchdog,
     diskVirtualizer,
     refileRegistry,
     refileWatcher,
@@ -156,6 +159,7 @@ async function initialize(): Promise<void> {
   portScanner.start();
   devServerManager.start();
   optimizer.start();
+  diskWatchdog.start();
 
   const registryFile = path.join(app.getPath('userData'), 'refile-registry.json');
   const registryIsNew = !fs.existsSync(registryFile);
@@ -186,6 +190,7 @@ app.on('before-quit', () => {
   processGuardian.stop();
   devServerManager.stop();
   optimizer.stop();
+  diskWatchdog.stop();
   portScanner.stop();
   memoryTracker.stop();
   processMonitor.stop();

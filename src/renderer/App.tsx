@@ -7,6 +7,7 @@ import { DevServers } from './components/DevServers';
 import { StartupPanel } from './components/StartupPanel';
 import { EnvVarsPanel } from './components/EnvVarsPanel';
 import { DiskCleanup } from './components/DiskCleanup';
+import { DiskWatchdog } from './components/DiskWatchdog';
 import { DiskVirtualize } from './components/DiskVirtualize';
 import { LeakAlert } from './components/LeakAlert';
 import { TitleBar } from './components/TitleBar';
@@ -36,13 +37,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup' | 'virtualize';
+type Tab = 'dashboard' | 'processes' | 'actions' | 'guardian' | 'devservers' | 'startup' | 'envvars' | 'diskcleanup' | 'virtualize' | 'watchdog';
 
-const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' | 'tab.startup' | 'tab.envvars' | 'tab.diskcleanup' | 'tab.virtualize' }[] = [
+const TAB_KEYS: { id: Tab; key: 'tab.dashboard' | 'tab.processes' | 'tab.actions' | 'tab.guardian' | 'tab.devservers' | 'tab.startup' | 'tab.envvars' | 'tab.diskcleanup' | 'tab.virtualize' | 'tab.watchdog' }[] = [
   { id: 'dashboard', key: 'tab.dashboard' },
   { id: 'processes', key: 'tab.processes' },
   { id: 'guardian', key: 'tab.guardian' },
   { id: 'devservers', key: 'tab.devservers' },
+  { id: 'watchdog', key: 'tab.watchdog' },
   { id: 'diskcleanup', key: 'tab.diskcleanup' },
   { id: 'virtualize', key: 'tab.virtualize' },
   { id: 'startup', key: 'tab.startup' },
@@ -88,6 +90,7 @@ export function App() {
           <div className={activeTab === 'devservers' ? '' : 'hidden'}><DevServers /></div>
           <div className={activeTab === 'startup' ? '' : 'hidden'}><StartupPanel /></div>
           <div className={activeTab === 'envvars' ? '' : 'hidden'}><EnvVarsPanel /></div>
+          <div className={activeTab === 'watchdog' ? '' : 'hidden'}><DiskWatchdog /></div>
           <div className={activeTab === 'diskcleanup' ? '' : 'hidden'}><DiskCleanup /></div>
           <div className={activeTab === 'virtualize' ? '' : 'hidden'}><DiskVirtualize /></div>
         </ErrorBoundary>

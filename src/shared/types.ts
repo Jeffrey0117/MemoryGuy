@@ -214,6 +214,33 @@ export interface DiskCleanResult {
   readonly totalFreed: number
 }
 
+// --- Disk watchdog (low-space monitor + Telegram alerts) ---
+
+export type DiskLevel = 'ok' | 'warn' | 'urgent' | 'unknown'
+
+export interface DriveSpace {
+  readonly drive: string
+  readonly totalBytes: number
+  readonly freeBytes: number
+  readonly level: DiskLevel
+}
+
+export interface DiskWatchdogSettings {
+  readonly enabled: boolean
+  readonly telegramToken: string
+  readonly telegramChatId: string
+  readonly warnFreeGb: number
+  readonly urgentFreeGb: number
+  readonly drives: readonly string[]
+  readonly intervalSec: number
+  readonly reNotifyMin: number
+}
+
+export interface DiskAlertTestResult {
+  readonly ok: boolean
+  readonly error?: string
+}
+
 // --- Disk virtualization ---
 
 export interface VirtScanItem {
@@ -435,6 +462,13 @@ export interface MemoryGuyAPI {
   executeDiskCleanup: (paths: string[], sizes: Record<string, number>) => Promise<DiskCleanResult>
   cancelDiskScan: () => Promise<void>
   onDiskScanProgress: (callback: (progress: DiskScanProgress) => void) => () => void
+
+  // Disk watchdog
+  getDiskWatchdog: () => Promise<DiskWatchdogSettings>
+  setDiskWatchdog: (settings: Partial<DiskWatchdogSettings>) => Promise<DiskWatchdogSettings>
+  getDriveSpaces: () => Promise<DriveSpace[]>
+  testDiskAlert: () => Promise<DiskAlertTestResult>
+  onDiskWatchdogUpdate: (callback: (drives: DriveSpace[]) => void) => () => void
 
   // Disk virtualization
   virtGetUserFolders: () => Promise<{ name: string; path: string }[]>

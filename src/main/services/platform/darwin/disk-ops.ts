@@ -23,6 +23,15 @@ export function createDarwinDiskOps(): DiskOps {
       return drives
     },
 
+    async getDriveSpace(mountPath: string): Promise<{ totalBytes: number; freeBytes: number }> {
+      try {
+        const s = await fs.promises.statfs(mountPath)
+        return { totalBytes: s.blocks * s.bsize, freeBytes: s.bavail * s.bsize }
+      } catch {
+        return { totalBytes: 0, freeBytes: 0 }
+      }
+    },
+
     async scanDriveForDevDirs(drive: string, depth: number, targetDirs: readonly string[]): Promise<{ fullPath: string; lastWriteTime: string }[]> {
       const safeDepth = Math.max(1, Math.min(Math.floor(depth), 20))
       const nameArgs = targetDirs.map((t) => `-name '${shellEscape(t)}'`).join(' -o ')

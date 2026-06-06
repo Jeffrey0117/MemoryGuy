@@ -20,6 +20,7 @@ import { RefileWatcher } from './services/refile-watcher';
 import { HardwareProfiler } from './services/hardware-profiler';
 import { SoftwareManager } from './services/software-manager';
 import { setupIpcHandlers } from './ipc-handlers';
+import { updateElectronApp } from 'update-electron-app';
 
 const LOG_FILE = path.join(__dirname, '..', 'crash.log');
 function log(msg: string): void {
@@ -172,6 +173,16 @@ async function initialize(): Promise<void> {
   }
 
   await createWindow();
+
+  // Auto-update (packaged builds only): polls GitHub Releases (via update.electronjs.org)
+  // and installs Squirrel updates in the background. No-op in dev.
+  if (app.isPackaged) {
+    try {
+      updateElectronApp();
+    } catch (err) {
+      log(`updater init failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 }
 
 log('--- App starting ---');

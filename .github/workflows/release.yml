@@ -1,0 +1,34 @@
+name: Release
+
+# Push a version tag (e.g. v0.2.0) to build the Squirrel.Windows installer in the
+# cloud and publish it to GitHub Releases. update-electron-app (via update.electronjs.org)
+# reads those releases and auto-updates every installed machine.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # build:preload (esbuild) + electron-forge publish (package -> make Squirrel -> publish).
+      - name: Publish installer
+        run: npm run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

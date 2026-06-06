@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useVirtualize } from '../hooks/useVirtualize';
+import { useLetMeUse } from '../hooks/useLetMeUse';
 import { useAppStore } from '../stores/app-store';
 import { t } from '../i18n';
 import { VirtOverview } from './VirtOverview';
@@ -33,11 +34,22 @@ function ConfigPanel({
   locale: 'en' | 'zh';
 }) {
   const current = config?.backends[config.defaultBackend];
+  const { isAuthenticated, token, user, login, logout } = useLetMeUse();
 
   const [endpoint, setEndpoint] = useState(
     current?.endpoint ?? 'https://pokkit.isnowfriend.com'
   );
   const [apiKey, setApiKey] = useState(current?.apiKey ?? '');
+
+  // When logged in via LetMeUse, use the login JWT as the Bearer token for uploads
+  // (no need to paste a key, and nothing secret is stored long-term).
+  useEffect(() => {
+    if (isAuthenticated && token) setApiKey(token);
+  }, [isAuthenticated, token]);
+
+  const userLabel = (user as { name?: string; email?: string } | null)?.name
+    || (user as { name?: string; email?: string } | null)?.email
+    || '';
 
   const handleSave = () => {
     if (!endpoint.trim()) return;
@@ -65,11 +77,29 @@ function ConfigPanel({
           <input type="text" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
             placeholder="https://pokkit.isnowfriend.com" className={inputCls} />
         </label>
-        <label className="block">
-          <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
-          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Bearer token" className={inputCls} />
-        </label>
+        {/* LetMeUse login — when logged in, uploads use your account token (login-gated) */}
+        <div className="flex items-center justify-between rounded bg-mg-border/10 px-3 py-2">
+          <span className="text-xs text-mg-muted">
+            {isAuthenticated
+              ? `↑ pokkit · ${userLabel || (locale === 'zh' ? '已登入' : 'logged in')}`
+              : (locale === 'zh' ? '登入以用你的帳號上傳' : 'Log in to upload with your account')}
+          </span>
+          <button
+            onClick={isAuthenticated ? logout : login}
+            className="px-3 py-1 text-xs rounded bg-mg-primary text-white hover:opacity-90 transition-opacity"
+          >
+            {isAuthenticated
+              ? (locale === 'zh' ? '登出' : 'Log out')
+              : (locale === 'zh' ? '登入' : 'Log in')}
+          </button>
+        </div>
+        {!isAuthenticated && (
+          <label className="block">
+            <span className="text-xs text-mg-muted">{t('virt.config.apiKey', locale)}</span>
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Bearer token" className={inputCls} />
+          </label>
+        )}
         <div className="text-xs text-mg-muted/60 bg-mg-border/10 rounded p-2">
           {t('virt.config.selfHostedHint', locale)}
         </div>

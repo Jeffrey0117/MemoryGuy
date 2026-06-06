@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemoryGuy - Your Dev Machine's Bodyguard for Windows</title>
+  <meta name="description" content="MemoryGuy monitors memory and CPU, detects memory leaks, guards processes from accidental kills, and virtualizes large files to tiny pointers.">
+  <meta name="theme-color" content="#30D158">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #000000; --surface: #1C1C1E; --surface-2: #2C2C2E;
+      --primary: #30D158; --primary-hover: #5DE27C;
+      --text: #FFFFFF; --text-secondary: #8E8E93; --text-tertiary: #636366;
+      --border: #38383A; --nav-bg: rgba(0,0,0,0.8);
+      --glow: rgba(48,209,88,0.16); --icon-bg: rgba(48,209,88,0.12); --shadow-btn: rgba(48,209,88,0.4);
+      --code-key: #5AC8FA; --code-val: #FFD60A;
+      --radius: 12px; --radius-lg: 20px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    html[data-theme="light"] {
+      --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #E8E8ED;
+      --primary: #248A3D; --primary-hover: #2EA043;
+      --text: #1D1D1F; --text-secondary: #6E6E73; --text-tertiary: #AEAEB2;
+      --border: #D2D2D7; --nav-bg: rgba(245,245,247,0.8);
+      --glow: rgba(36,138,61,0.08); --icon-bg: rgba(36,138,61,0.08); --shadow-btn: rgba(36,138,61,0.3);
+      --code-key: #0550AE; --code-val: #9A6700;
+    }
+    html[data-lang="en"] .zh { display: none !important; }
+    html[data-lang="zh"] .en { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s; }
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; transition: background 0.3s, border-color 0.3s; }
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 18px; }
+    .logo-box { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--icon-bg); }
+    .nav-brand .logo-box { width: 32px; height: 32px; font-size: 18px; }
+    .nav-links { display: flex; align-items: center; gap: 20px; }
+    .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .toggle-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 14px; font-weight: 600; }
+    .toggle-btn:hover { color: var(--text); border-color: var(--text-tertiary); }
+    .lang-btn { width: auto; padding: 0 12px; font-size: 13px; }
+    html[data-theme="dark"] .icon-sun { display: none; }
+    html[data-theme="light"] .icon-moon { display: none; }
+    .nav-download { display: inline-flex; align-items: center; gap: 6px; background: var(--primary); color: #00210C; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700; transition: background 0.2s; }
+    .nav-download:hover { background: var(--primary-hover); }
+    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 24px 80px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -40%; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, var(--glow) 0%, transparent 70%); pointer-events: none; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 6px 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 32px; }
+    .hero-badge span.v { color: var(--primary); font-weight: 600; }
+    .hero-logo { width: 96px; height: 96px; border-radius: 24px; margin-bottom: 32px; box-shadow: 0 8px 32px var(--shadow-btn); font-size: 52px; }
+    .hero h1 { font-size: clamp(40px, 8vw, 72px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px; }
+    .hero h1 .gradient { background: linear-gradient(135deg, var(--primary), #6EE787, #5AC8FA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-desc { font-size: clamp(16px, 2.5vw, 20px); color: var(--text-secondary); max-width: 580px; margin-bottom: 40px; line-height: 1.5; }
+    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; border-radius: var(--radius); font-size: 16px; font-weight: 600; text-decoration: none; transition: all 0.2s; cursor: pointer; border: none; }
+    .btn-primary { background: var(--primary); color: #00210C; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 16px var(--shadow-btn); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--surface-2); border-color: var(--text-tertiary); }
+    section { padding: 100px 24px; max-width: 1120px; margin: 0 auto; }
+    .section-label { font-size: 14px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    .section-title { font-size: clamp(28px, 5vw, 44px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 16px; }
+    .section-desc { font-size: 18px; color: var(--text-secondary); max-width: 640px; line-height: 1.6; }
+    .section-header { text-align: center; margin-bottom: 64px; }
+    .section-header .section-desc { margin: 0 auto; }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; transition: border-color 0.2s, transform 0.2s, background 0.3s; }
+    .feature-card:hover { border-color: var(--text-tertiary); transform: translateY(-2px); }
+    .feature-icon { width: 48px; height: 48px; background: var(--icon-bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--primary); }
+    .feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+    .virtual-section { padding: 100px 24px; }
+    .virtual-inner { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .virtual-demo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; font-size: 14px; line-height: 1.8; }
+    .virtual-demo .comment { color: var(--text-tertiary); }
+    .virtual-demo .key { color: var(--code-key); }
+    .virtual-demo .value { color: var(--code-val); }
+    .virtual-demo .bracket { color: var(--text-secondary); }
+    .virtual-stats { display: flex; gap: 32px; margin-top: 32px; }
+    .virtual-stat .number { font-size: 32px; font-weight: 700; color: var(--primary); font-family: var(--font); }
+    .virtual-stat .label { font-size: 13px; color: var(--text-secondary); font-family: var(--font); }
+    .cta { text-align: center; padding: 100px 24px; position: relative; }
+    .cta::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, var(--glow) 0%, transparent 70%); pointer-events: none; }
+    .cta h2 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .cta p { font-size: 18px; color: var(--text-secondary); margin-bottom: 40px; max-width: 480px; margin-left: auto; margin-right: auto; }
+    .cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .platform-note { margin-top: 16px; font-size: 13px; color: var(--text-tertiary); }
+    footer { border-top: 1px solid var(--border); padding: 48px 24px; max-width: 1120px; margin: 0 auto; }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
+    .footer-brand { display: flex; align-items: center; gap: 10px; }
+    .footer-brand .logo-box { width: 24px; height: 24px; font-size: 14px; }
+    .footer-brand span { font-weight: 600; font-size: 14px; }
+    .footer-tech { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .tech-badge { display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { color: var(--text-tertiary); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-bottom { margin-top: 32px; text-align: center; font-size: 13px; color: var(--text-tertiary); }
+    .trio { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+    .trio a { font-size: 13px; color: var(--text-secondary); text-decoration: none; border: 1px solid var(--border); border-radius: 100px; padding: 6px 14px; transition: all 0.2s; }
+    .trio a:hover { color: var(--text); border-color: var(--text-tertiary); }
+    @media (max-width: 768px) { .features-grid { grid-template-columns: 1fr; } .virtual-inner { grid-template-columns: 1fr; gap: 40px; } .hero { padding: 100px 20px 60px; } section { padding: 64px 20px; } .footer-inner { flex-direction: column; text-align: center; } .footer-tech, .footer-links { justify-content: center; } }
+    @media (min-width: 769px) and (max-width: 1024px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="nav-brand"><span class="logo-box">🧠</span> MemoryGuy</a>
+    <div class="nav-links">
+      <a href="#features" class="nav-link-text"><span class="en">Features</span><span class="zh">功能</span></a>
+      <a href="#virtualize" class="nav-link-text"><span class="en">Virtualize</span><span class="zh">虛擬化</span></a>
+      <a href="https://github.com/Jeffrey0117/MemoryGuy" target="_blank" rel="noopener" class="nav-link-text">GitHub</a>
+      <button onclick="toggleTheme()" class="toggle-btn" aria-label="Toggle theme">
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button onclick="toggleLang()" class="toggle-btn lang-btn"><span class="en">中文</span><span class="zh">EN</span></button>
+      <a href="https://github.com/Jeffrey0117/MemoryGuy/releases" class="nav-download">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge"><span class="v">v0.2.0</span><span class="en">Windows &middot; auto-updates</span><span class="zh">Windows &middot; 自動更新</span></div>
+    <div class="hero-logo logo-box">🧠</div>
+    <h1>
+      <span class="en">Your dev machine's<br><span class="gradient">bodyguard</span></span>
+      <span class="zh">你電腦的<br><span class="gradient">保鑣</span></span>
+    </h1>
+    <p class="hero-desc">
+      <span class="en">MemoryGuy watches your RAM and CPU, hunts down memory leaks, stops important processes from being killed (even by AI tools), and turns space-hogging files into tiny pointers. Keep your machine fast and your disk light.</span>
+      <span class="zh">MemoryGuy 盯著你的記憶體與 CPU、揪出記憶體洩漏、防止重要程式被誤殺(連 AI 工具都殺不掉),還能把佔空間的大檔變成小指標。讓電腦一直順、硬碟一直輕。</span>
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/Jeffrey0117/MemoryGuy/releases" class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="en">Download for Windows</span><span class="zh">下載 Windows 版</span>
+      </a>
+      <a href="https://github.com/Jeffrey0117/MemoryGuy" target="_blank" rel="noopener" class="btn btn-secondary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        <span class="en">View on GitHub</span><span class="zh">GitHub 原始碼</span>
+      </a>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="section-header">
+      <p class="section-label">Features</p>
+      <h2 class="section-title"><span class="en">Watches your machine,<br>so you don't have to</span><span class="zh">幫你顧電腦,<br>你不用操心</span></h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+        <h3><span class="en">Memory leak detection</span><span class="zh">記憶體洩漏偵測</span></h3>
+        <p><span class="en">Per-process RAM history with linear-regression analysis flags the apps that slowly eat your memory &mdash; before they grind your PC to a halt.</span><span class="zh">用線性回歸分析每個程式的記憶體走勢,揪出慢慢吃光記憶體的兇手 &mdash; 在電腦卡死之前。</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3><span class="en">Process Guardian</span><span class="zh">程式守護</span></h3>
+        <p><span class="en">Mark critical processes (dev servers, your editor) as protected. MemoryGuy &mdash; and even AI tools &mdash; can never accidentally kill them.</span><span class="zh">把關鍵程式(開發伺服器、編輯器)標記為受保護。MemoryGuy 連 AI 工具都不會誤殺它們。</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+        <h3><span class="en">Live system monitor</span><span class="zh">即時系統監控</span></h3>
+        <p><span class="en">Real-time RAM, CPU, and per-process charts. See exactly what's running and what it's costing you.</span><span class="zh">即時 RAM、CPU、每程式圖表。一眼看清誰在跑、吃掉多少資源。</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+        <h3><span class="en">Dev server dashboard</span><span class="zh">開發伺服器面板</span></h3>
+        <p><span class="en">Scans local ports, lists your running dev servers, and can auto-restart the ones that crash. No more "what's on 3000?".</span><span class="zh">掃描本機埠口、列出你跑的開發伺服器,還能自動重啟掛掉的。再也不用問「3000 埠是誰」。</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></div>
+        <h3><span class="en">File virtualization</span><span class="zh">檔案虛擬化</span></h3>
+        <p><span class="en">Log in and replace any large file with a ~200-byte pointer (cloud URL + checksum). Watch folders and reclaim disk automatically, safely &mdash; verified before the original is removed.</span><span class="zh">登入後把任何大檔換成約 200 位元組的指標(雲端 URL + 校驗碼)。盯著資料夾自動瘦身,且驗證無誤才移除原檔。</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>
+        <h3><span class="en">Always up to date</span><span class="zh">永遠最新</span></h3>
+        <p><span class="en">Install once. MemoryGuy updates itself in the background &mdash; new protections and fixes arrive automatically.</span><span class="zh">裝一次。MemoryGuy 背景自我更新,新防護與修正自動送達。</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="virtual-section" id="virtualize">
+    <div class="virtual-inner">
+      <div class="virtual-content">
+        <p class="section-label">.refile format</p>
+        <h2 class="section-title"><span class="en">Big files, tiny pointers</span><span class="zh">大檔案,小指標</span></h2>
+        <p class="section-desc"><span class="en">MemoryGuy is the foundation of the trio's virtualization: it owns the canonical pointer format. Any file &mdash; video, image, archive &mdash; becomes a tiny JSON with a cloud URL, MIME type, SHA-256 and size. The same format RePic and ReVid write, so MemoryGuy can track every virtualized file on your machine.</span><span class="zh">MemoryGuy 是三棟虛擬化的地基,握有正典指標格式。任何檔案 &mdash; 影片、圖片、壓縮包 &mdash; 都變成一個小 JSON,含雲端 URL、MIME、SHA-256 與大小。RePic、ReVid 寫的是同一種格式,所以 MemoryGuy 能追蹤你機器上每一個虛擬化檔案。</span></p>
+        <div class="virtual-stats">
+          <div class="virtual-stat"><div class="number">~200 B</div><div class="label"><span class="en">pointer file size</span><span class="zh">指標檔大小</span></div></div>
+          <div class="virtual-stat"><div class="number">SHA-256</div><div class="label"><span class="en">verified before delete</span><span class="zh">驗證後才刪檔</span></div></div>
+        </div>
+      </div>
+      <div class="virtual-demo">
+        <span class="comment">// archive.refile</span><br>
+        <span class="bracket">{</span><br>
+        &nbsp;&nbsp;<span class="key">"v"</span>: <span class="value">2</span>,<br>
+        &nbsp;&nbsp;<span class="key">"type"</span>: <span class="value">"refile"</span>,<br>
+        &nbsp;&nbsp;<span class="key">"url"</span>: <span class="value">"https://.../file"</span>,<br>
+        &nbsp;&nbsp;<span class="key">"mime"</span>: <span class="value">"application/zip"</span>,<br>
+        &nbsp;&nbsp;<span class="key">"hash"</span>: <span class="value">"sha256:..."</span>,<br>
+        &nbsp;&nbsp;<span class="key">"size"</span>: <span class="value">2147483648</span><br>
+        <span class="bracket">}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="download">
+    <h2><span class="en">Give your machine a bodyguard</span><span class="zh">給你的電腦一個保鑣</span></h2>
+    <p><span class="en">Free and open source. Download MemoryGuy and take back control.</span><span class="zh">完全免費且開源。下載 MemoryGuy,把電腦的主控權拿回來。</span></p>
+    <div class="cta-actions">
+      <a href="https://github.com/Jeffrey0117/MemoryGuy/releases" class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="en">Download v0.2.0</span><span class="zh">下載 v0.2.0</span>
+      </a>
+      <a href="https://github.com/Jeffrey0117/MemoryGuy" target="_blank" rel="noopener" class="btn btn-secondary"><span class="en">View source code</span><span class="zh">查看原始碼</span></a>
+    </div>
+    <p class="platform-note"><span class="en">Windows 10+ &middot; Auto-updates &middot; Install once, always current</span><span class="zh">Windows 10 以上 &middot; 自動更新 &middot; 裝一次,永遠最新</span></p>
+    <div class="trio">
+      <a href="https://jeffrey0117.github.io/RePic/">🖼️ RePic</a>
+      <a href="https://jeffrey0117.github.io/ReVid/">🎬 ReVid</a>
+      <a href="https://jeffrey0117.github.io/MemoryGuy/">🧠 MemoryGuy</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand"><span class="logo-box">🧠</span><span>MemoryGuy</span></div>
+      <div class="footer-tech">
+        <span class="tech-badge">Electron</span><span class="tech-badge">React 18</span><span class="tech-badge">TypeScript</span><span class="tech-badge">systeminformation</span><span class="tech-badge">Recharts</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/Jeffrey0117/MemoryGuy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/Jeffrey0117/MemoryGuy/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/Jeffrey0117/MemoryGuy/issues" target="_blank" rel="noopener">Issues</a>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; 2025&ndash;2026 MemoryGuy. Open source under MIT License.</div>
+  </footer>
+
+  <script>
+    (function() {
+      var h = document.documentElement;
+      var st = localStorage.getItem('mg-theme');
+      if (!st) st = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      h.setAttribute('data-theme', st);
+      var sl = localStorage.getItem('mg-lang');
+      if (!sl) sl = (navigator.language || '').startsWith('zh') ? 'zh' : 'en';
+      h.setAttribute('data-lang', sl);
+    })();
+    function toggleTheme() { var h = document.documentElement; var n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; h.setAttribute('data-theme', n); localStorage.setItem('mg-theme', n); }
+    function toggleLang() { var h = document.documentElement; var n = h.getAttribute('data-lang') === 'en' ? 'zh' : 'en'; h.setAttribute('data-lang', n); localStorage.setItem('mg-lang', n); }
+  </script>
+</body>
+</html>

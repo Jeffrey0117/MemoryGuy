@@ -1,6 +1,6 @@
 {
   "name": "memory-guy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "System resource monitor with memory leak detection",
   "main": ".vite/build/index.js",
   "scripts": {

@@ -1,0 +1,10 @@
+{
+  "repo": 1,
+  "name": "MemoryGuy",
+  "what": "System resource monitor with memory leak detection",
+  "kind": "app",
+  "work": {
+    "guide": "CLAUDE.md",
+    "run": "npm start"
+  }
+}
